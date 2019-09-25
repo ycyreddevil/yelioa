@@ -1,0 +1,147 @@
+﻿<%@ Master Language="C#" AutoEventWireup="true" CodeFile="template.master.cs" Inherits="Template_template" %>
+
+<!DOCTYPE html>
+
+<html>
+<head runat="server">
+    <meta name="viewport" content="width=device-width, initial-scale=1,maximum-scale=1,user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <title></title>
+    <link href="/Scripts/mui/css/mui.min.css" rel="stylesheet" />
+    <link href="/Scripts/mui/css/mui.picker.min.css" rel="stylesheet" />
+    <link href="/Scripts/mui/css/mui.page.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://unpkg.com/muse-ui/dist/muse-ui.css">
+    <asp:ContentPlaceHolder id="additionalStyle" runat="server">
+    </asp:ContentPlaceHolder>
+</head>
+<body>
+    <div id="total">
+        <div id="index" class="mui-views">
+            <div class="mui-view">
+                <div class="mui-navbar">
+                </div>
+                <div class="mui-pages">
+
+                </div>
+            </div>
+        </div>
+        <div id="main" class="mui-page">
+            <div class="mui-navbar-inner mui-bar mui-bar-nav">
+                <button id="search" type="button" class="mui-left mui-action-back mui-btn mui-btn-link mui-btn-nav mui-pull-left">
+                    <span class="mui-icon mui-icon-close"></span>关闭
+                </button>
+                <button id="toTable" type="button" class="mui-right mui-action-back mui-btn mui-btn-link mui-btn-nav mui-pull-right">
+                    <span class="mui-icon mui-icon-paperplane"></span>上报
+                </button>
+                <h1 class="mui-center mui-title" style="margin-left: 0px">预算填报</h1>
+            </div>
+            <div class="mui-page-content">
+                <asp:ContentPlaceHolder id="pageOneContent" runat="server">
+        
+                </asp:ContentPlaceHolder>
+                <!-- 显示研发部各项目或者各部门-->
+                <%--<ul class="mui-table-view" id="yfList">
+                    
+                    <li class="mui-table-view-cell">
+                        <a class="mui-navigate-right">YL-SJ-201701(理论可用额度:10000)</a>
+                        <span class="mui-badge mui-badge-primary">2300</span>
+                    </li>
+                    
+                    <li class="mui-table-view-cell">
+                        <a class="mui-navigate-right">YL-SJ-201703</a>
+                    </li>
+                    
+                    <li class="mui-table-view-cell">
+                        <a class="mui-navigate-right">YL-SJ-201704</a>
+                    </li>
+                </ul--%>>
+            </div>
+        </div>
+
+        <div id="subPage" class="mui-page">
+            <div class="mui-navbar-inner mui-bar mui-bar-nav">
+                <button type="button" class="mui-left mui-action-back mui-btn  mui-btn-link mui-btn-nav mui-pull-left">
+                    <span class="mui-icon mui-icon-left-nav"></span>返回
+                </button>
+                <button type="button" class="mui-right mui-action-back mui-btn mui-btn-link mui-btn-nav mui-pull-right">
+                    <span class="mui-icon mui-icon-loop"></span>确定
+                </button>
+                <h1 class="mui-center mui-title" style="margin-left: 0px">搜索</h1>
+            </div>
+            <div class="mui-page-content">
+                <asp:ContentPlaceHolder id="pageTwoContent" runat="server">
+
+                </asp:ContentPlaceHolder>
+                <!-- 显示研发费用各费用明细-->
+                <%--<ul class="mui-table-view"> 
+                    <li class="mui-table-view-cell mui-collapse">
+                        <a class="mui-navigate-right" href="#">研发费用金额</a>
+                        <div class="mui-collapse-content">
+                            <div class="mui-input-row">
+                                <label>差旅费</label>
+                                <input type="text" class="mui-input-clear" placeholder="请填写差旅费费用计划">
+                            </div>
+                            <div class="mui-input-row">
+                                <label>交通费</label>
+                                <input type="text" class="mui-input-clear" placeholder="请填写交通费费用计划">
+                            </div>
+                            <div class="mui-input-row">
+                                <label>项目费</label>
+                                <input type="text" class="mui-input-clear" placeholder="请填写项目费">
+                            </div>
+                            <div class="mui-input-row">
+                                <label>总计</label>
+                                <input type="text" class="mui-input-clear" placeholder="费用计划总额">
+                            </div>
+                        </div>
+                    </li>
+                </ul>--%>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+<script src="/Scripts/mui/js/mui.min.js"></script>
+<script src="/Scripts/mui/js/mui.enterfocus.js"></script>
+<script src="/Scripts/mui/js/mui.view.js"></script>
+<script src="/Scripts/mui/js/mui.picker.min.js"></script>
+<script src="/Scripts/echarts/echarts.min.js"></script>
+<script src="/Scripts/jquery.min.js"></script>
+<script src="/Scripts/vue.js"></script>
+<asp:ContentPlaceHolder id="additionalScript" runat="server">
+</asp:ContentPlaceHolder>
+<script>
+    var vue = new Vue({
+        el: '#total',
+        data: {
+
+        },
+        methods: {
+
+        },
+        mounted: function() {
+            mui.init();
+            var viewApi = mui('#index').view({
+                defaultPage: '#main'
+            });
+            (function ($) {
+                // 绑定列表显示页面
+                mui("#yfList").on('tap','li',function() {
+                    viewApi.go("#subPage");
+                });
+
+                //处理view的后退与webview后退
+                var oldBack = $.back;
+                $.back = function() {
+                    if (viewApi.canBack()) { //如果view可以后退，则执行view的后退
+                        viewApi.back();
+                    } else { //执行webview后退
+                        //oldBack();
+                    }
+                };
+            })(mui);
+
+        }
+    })
+</script>

@@ -1,0 +1,18 @@
+
+@font-face {
+    font-family: "custom-iconfont";
+    src: url('iconfont.ttf?t=1524895790275') format('truetype'), /* chrome, firefox, opera, Safari, Android, iOS 4.2+*/
+}
+
+.van-icon {
+    font-family: "iconfont" !important;
+    font-size: 16px;
+    font-style: normal;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.van-icon-receiveEmail:before {
+    content: "\e608";
+}
+
