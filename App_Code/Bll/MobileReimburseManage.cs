@@ -73,6 +73,9 @@ public class MobileReimburseManage
 
         int self_department_parentId = Int32.Parse(ds.Tables[0].Rows[0][0].ToString());
 
+        if (self_departmentId == 285 || self_departmentId == 282 || self_departmentId == 284)
+            self_department_parentId = self_departmentId;
+
         while (self_department_parentId != 1 && self_department_parentId != 285
             && self_department_parentId != 282 && self_department_parentId != 284)
         {
@@ -211,10 +214,10 @@ public class MobileReimburseManage
             Boolean isSameDep = false;
 
             // 判断是否是跨部门
-            if (fee_department_id == self_departmentId)
-            {
+            if (fee_department_parentId == 284 && fee_department_id == self_departmentId)
                 isSameDep = !isSameDep;
-            }
+            else if (fee_department_parentId != 284 && fee_department_parentId == self_department_parentId)
+                isSameDep = !isSameDep;
 
             // 如果是跨部门审批
             if (!isSameDep)
