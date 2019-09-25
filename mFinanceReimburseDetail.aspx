@@ -55,7 +55,7 @@
                         style="line-height: inherit;padding-left:10px">
                     </van-icon>
                 </van-cell>
-                <van-uploader style="margin-left:10px" multiple :before-read="beforeRead" :after-read="afterRead" :preview-image="previewImage"/>
+                <van-uploader style="margin-left:10px" multiple :before-read="beforeRead" :after-read="afterRead" :preview-image="previewImage" max-size="8000000" :oversize="overSize"/>
             </van-cell-group>
         </mu-paper>
         <van-divider>发票明细</van-divider>
@@ -425,6 +425,13 @@
                 //constPhoteList = this.photoList
                 web({ action: 'uploadFile', files: JSON.stringify(fileList), fileNames: JSON.stringify(fileNameList) }).then(res => {
                     const result = res.data
+
+                    if (result.message) {
+                        this.$toast.clear();
+                        this.$toast(result.message)
+                        return
+                    }
+
                     for (let temp of result) {
                         const url = temp.url
                         const info = temp.details
@@ -574,6 +581,10 @@
             },
             deleteDetail() {
                 this.receiptList.splice(this.clickIndex, 1)
+            },
+            overSize() {
+                this.$toast('无法上传超过8m的图片！');
+                return
             }
         },
         mounted: function () {

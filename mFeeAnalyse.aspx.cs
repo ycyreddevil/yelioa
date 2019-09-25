@@ -360,13 +360,29 @@ public partial class mFeeAnalyse : Page
             string fee_sql = string.Format("select ifnull(sum(fee_amount),0) from yl_reimburse where report_department = '{0}' and " +
             "(account_result != '拒绝' or account_result is null) and date_format(approval_time, '%Y-%m' ) = '{1}' and status = '已审批'", depName, startDate);
 
-            sqls.Add(sql);
+            sqls.Add(fee_sql);
 
-            string other_fee_sql = string.Format("select ifnull(sum(feeAmount), 0) from yl_reimburse_other where reportDepartmentName = '{0}' and year = {1} and month = {2} and feeName != '流向' " +
-                "and feeName != '纯销' and feeName != '毛利'",
+            string other_fee_sql = "";
+
+            if (depName == "集团行政部")
+            {
+                other_fee_sql = string.Format("select ifnull(sum(feeAmount), 0) from yl_reimburse_other where (reportDepartmentName = '{0}' and feeName != '流向' " +
+                "and feeName != '纯销' and feeName != '毛利' or feeName = '租赁费') and year = {1} and month = {2} ",
                 depName, int.Parse(startDate.Split('-')[0]), int.Parse(startDate.Split('-')[1]));
+            }
+            else if (depName == "集团人力资源部")
+            {
+                other_fee_sql = string.Format("select ifnull(sum(feeAmount), 0) from yl_reimburse_other where (reportDepartmentName = '{0}' and feeName != '流向' " +
+                "and feeName != '纯销' and feeName != '毛利' or feeName = '工资社保金额') and year = {1} and month = {2} ",
+                depName, int.Parse(startDate.Split('-')[0]), int.Parse(startDate.Split('-')[1]));
+            }
+            else
+            {
+                other_fee_sql = string.Format("select ifnull(sum(feeAmount), 0) from yl_reimburse_other where reportDepartmentName = '{0}' and year = {1} and month = {2} and feeName != '流向' " +
+                "and feeName != '纯销' and feeName != '毛利'", depName, int.Parse(startDate.Split('-')[0]), int.Parse(startDate.Split('-')[1]));
+            }
 
-            sqls.Add(other_sql);
+            sqls.Add(other_fee_sql);
 
             DataSet ds = SqlHelper.Find(sqls.ToArray());
 
@@ -439,11 +455,15 @@ public partial class mFeeAnalyse : Page
             sql += string.Format("select ifnull(sum(feeAmount), 0) from yl_reimburse_other where reportDepartmentName = '{0}' and year = {1} and month = {2} and " +
                 "feeName = '流向';", depName, int.Parse(startDate.Split('-')[0]), int.Parse(startDate.Split('-')[1]));
 
+            sql += string.Format("select ifnull(sum(feeAmount), 0) from yl_reimburse_other where year = {0} and month = {1} and " +
+                "feeName = '流向';", int.Parse(startDate.Split('-')[0]), int.Parse(startDate.Split('-')[1]));
+
             DataSet ds = SqlHelper.Find(sql);
 
             double fee = double.Parse(ds.Tables[0].Rows[0][0].ToString());
             double other_fee = double.Parse(ds.Tables[1].Rows[0][0].ToString());
             double flow = double.Parse(ds.Tables[2].Rows[0][0].ToString());
+            double totalFlow = double.Parse(ds.Tables[3].Rows[0][0].ToString());
 
             // 市场部下面的线需要合并
             if (depName == "免疫线" || depName == "分子线" || depName == "自身免疫线" || depName == "病理线" || depName == "耗材线")
@@ -456,12 +476,18 @@ public partial class mFeeAnalyse : Page
             }
 
             // 费用率 = 总费用/总流向
-            double ratio = Math.Round((fee + other_fee) / flow, 4) * 100;
+            double ratio = 0;
+
+            if (flow == 0 && totalFlow != 0)
+                ratio = Math.Round((fee + other_fee) / totalFlow, 4) * 100;
+            else if (flow != 0)
+                ratio = Math.Round((fee + other_fee) / flow, 4) * 100;
 
             Dictionary<string, object> dict = new Dictionary<string, object>();
 
             dict["Name"] = depName;
             dict["Value"] = ratio + "%";
+            dict["const"] = 100;
 
             result.Add(dict);
         }
@@ -521,7 +547,7 @@ public partial class mFeeAnalyse : Page
             Dictionary<string, object> dict = new Dictionary<string, object>();
 
             dict["Name"] = depName;
-            dict["Value"] = ratio + "%";
+            dict["Value"] = ratio;
 
             result.Add(dict);
         }

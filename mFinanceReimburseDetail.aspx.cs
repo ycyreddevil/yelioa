@@ -165,7 +165,7 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
 
             if (dict["result"].ToString() == "0")
             {
-                return null;
+                return JsonHelper.SerializeObject(dict);
             }
 
             string tempStr = JsonHelper.DeserializeJsonToObject<Dictionary<string, object>>(dict["response"].ToString())["data"].ToString();

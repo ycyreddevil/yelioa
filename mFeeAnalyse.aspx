@@ -13,7 +13,7 @@
     <link href="Scripts/themes/icon.css" rel="stylesheet" />
     <link href="Scripts/themes/color.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://unpkg.com/muse-ui/dist/muse-ui.css">
-     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vant@2.0/lib/index.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vant@2.0/lib/index.css">
     <link rel="stylesheet" href="https://cdn.bootcss.com/material-design-icons/3.0.1/iconfont/material-icons.css">
     <link rel="stylesheet" href="https://gw.alipayobjects.com/os/rmsportal/YmDAMEQVbLJpVbKiRQVX.css" />
     <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
@@ -23,7 +23,7 @@
         <van-nav-bar :title="titleName" right-text="月份查询" left-text="类型查询" @click-right="timeDialog = true" @click-left="typeDialog = true"></van-nav-bar>
         <H5 v-show="type === '0' || type === '1'" style="text-align:center;margin-bottom:0px">{{startTm}} 费用总计:{{totalAmount.toFixed(3)}}(万元)</H5>
         <canvas id="mountNode" v-if="type === '0' || type === '1' || type === '3' || type === '4'"></canvas>
-        <el-table :data="tableData" stripe style="width: 100%; font-size:10px" height="750" show-summary v-else>
+        <el-table :data="tableData" stripe style="width: 100%; font-size:10px" height="750" v-else>
             <el-table-column
                 fixed
                 prop="name"
@@ -91,9 +91,9 @@
             endTm: '',
             toast: '',
             totalAmount: 0,
-            type: '0',
+            type: '3',
             titleName: '部门费用占比',
-            tableData: []
+            tableData: [],
         },
         methods: {
             onSelect(item) {
@@ -170,10 +170,10 @@
                     vm.tableData = data
                     initFeeTable()
                 }
-                else if (type === '3' || type === '4') {
-                    vm.feeAnalyseData = data
-                    initType3AndType4()
-                }
+                //else if (type === '3' || type === '4') {
+                //    vm.feeAnalyseData = data
+                //    initType3AndType4()
+                //}
                 else {
                     vm.feeAnalyseData = data.sort((a, b) => {
                         return a.value - b.value;
@@ -188,7 +188,7 @@
     }
 
     function initType1AndType2() {
-        var chart = new F2.Chart({
+        const chart = new F2.Chart({
             id: 'mountNode',
             pixelRatio: window.devicePixelRatio,
             padding: [20, 20, 5],
@@ -228,45 +228,6 @@
 
     function numberAndPerfect(n) {
         return n + '(' + ((n / vm.totalAmount) * 100).toFixed(3) + '%)';
-    }
-
-    function initType3AndType4() {
-        var chart = new F2.Chart({
-            id: 'mountNode',
-            pixelRatio: window.devicePixelRatio,
-            padding: ['auto', 'auto', 40, 'auto']
-        });
-        chart.source(vm.feeAnalyseData);
-        chart.tooltip(false);
-        // 坐标轴文本旋转
-        chart.axis('name', {
-            label: {
-                rotate: -Math.PI / 2,
-                textAlign: 'end',
-                textBaseline: 'middle'
-            }
-        });
-        chart.interval().position('name*value').color('value', function (val) {
-            if (val === 20) {
-                return '#1890ff';
-            }
-            return '#66B5FF';
-        });
-
-        // 柱状图添加文本
-        vm.feeAnalyseData.map(function (obj) {
-            chart.guide().text({
-                position: [obj.name, obj.value],
-                content: obj.value,
-                style: {
-                    textAlign: 'center',
-                    textBaseline: 'bottom'
-                },
-                offsetY: -4
-            });
-        });
-
-        chart.render();
     }
 </script>
 </html>
