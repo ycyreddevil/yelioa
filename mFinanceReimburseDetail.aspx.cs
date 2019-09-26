@@ -142,7 +142,7 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
 
             ////压缩图片的存储路径
             string reducedPath = _filePath.Substring(0, _filePath.LastIndexOf("\\") + 1) + Guid.NewGuid().ToString() + ".jpg";
-            CompressImage(_filePath, reducedPath, 80, 1000, false);
+            CompressImage(_filePath, reducedPath, 50, 1000, false);
 
             //// 获取压缩图片的base64编码
             string reducedBase64 = ImgToBase64String(reducedPath);
@@ -179,6 +179,7 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
 
             for (int i = 0; i < jObjectList.Count; i ++)
             {
+
                 // 加入裁剪图
                 string region = jObjectList[i]["region"].ToString();
                 string orientation = jObjectList[i]["orientation"].ToString();
@@ -194,7 +195,7 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
 
                 if (orientation != "0")
                 {
-                    originBase64 = OrientationImage(new Bitmap(newPath), orientation);
+                    reducedBase64 = OrientationImage(new Bitmap(newPath), orientation);
                     Base64StringToImage(reducedBase64, newPath);
                 }
 

@@ -117,7 +117,7 @@
                         <van-field type="number" v-model="temp.ReceiptAmount" label="发票金额"></van-field>
                         <van-field v-model="temp.ReceiptPerson" label="发票人"></van-field>
                         <van-field v-model="temp.RelativePerson" label="同行人"></van-field>
-                        <van-field v-show="temp.ReceiptType != '出差补贴'" type="number" v-model="temp.ReceiptTax" readonly label="发票税额"></van-field>
+                        <van-field v-show="temp.ReceiptType != '出差补贴'" type="number" v-model="temp.ReceiptTax" label="发票税额"></van-field>
                         <van-field v-model="temp.ReceiptPlace" label="发票地点"></van-field>
                         <van-field v-model="temp.ReceiptDesc" type="textarea" label="活动内容描述"></van-field>
                     </van-cell-group>

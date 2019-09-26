@@ -244,7 +244,7 @@
                     }
                     if (temp['feeType'] != '火车票' && temp['feeType'] != '飞机票') {
                         if (temp['receiptPlace'].indexOf('省') === -1 && (temp['receiptPlace'] !== '北京市'
-                            || temp['receiptPlace'] !== '上海市' || temp['receiptPlace'] !== '天津市' || temp['receiptPlace'] !== '重庆市')) {
+                            && temp['receiptPlace'] !== '上海市' && temp['receiptPlace'] !== '天津市' && temp['receiptPlace'] !== '重庆市')) {
                             msg = '发票地址必须包含省份'
                             flag = false
                         } else if (temp['receiptPlace'].indexOf('市') === -1 && temp['receiptType'] === '住宿费') {
