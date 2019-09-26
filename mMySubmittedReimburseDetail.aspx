@@ -68,7 +68,7 @@
                 fit="cover"
                 :src="temp.ReceiptAttachment" 
                 style="margin:5px"
-                @click="isImagePreviewShow = true; imageIndex = index">
+                @click="isImagePreviewShow = true; imageList = []; imageList.push(temp.ReceiptAttachment)">
                 <template v-slot:error>加载失败</template>
             </van-image>
             <van-divider>发票明细</van-divider>
@@ -145,7 +145,7 @@
         },
         methods: {
             showDetail(temp) {
-                this.imageList = []
+                //this.imageList = []
                 this.isShowDetail = true
                 this.chooseBatchNo = temp
                 web({ action: 'getDetail', batchNo: temp }).then(res => {
@@ -154,10 +154,10 @@
                         this.isReSubmit = true
                     else
                         this.isReSubmit = false
-                    res.data.forEach((v, i) => {
-                        if (v.ReceiptAttachment !== '')
-                            this.imageList.push(v.ReceiptAttachment)
-                    })
+                    //res.data.forEach((v, i) => {
+                    //    if (v.ReceiptAttachment !== '')
+                    //        this.imageList.push(v.ReceiptAttachment)
+                    //})
                 })
             },
             refresh() {

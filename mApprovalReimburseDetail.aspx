@@ -58,8 +58,7 @@
         <!--图片预览-->
         <van-image-preview
           v-model="isImagePreviewShow"
-          :images="imageList"
-          @change="onChange">
+          :images="imageList">
           <template v-slot:index>第{{ imageIndex+1 }}页</template>
         </van-image-preview>
         <!--单据详情弹出框-->
@@ -106,7 +105,7 @@
                             fit="cover"
                             :src="temp.ReceiptAttachment" 
                             style="margin:10px"
-                            @click="isImagePreviewShow = true">
+                            @click="isImagePreviewShow = true;imageList = [];imageList.push(temp.ReceiptAttachment)">
                             <template v-slot:error>加载失败</template>
                         </van-image>
                         <van-field label="发票用途" v-model="temp.ReceiptType"></van-field>
@@ -249,15 +248,15 @@
             showDetail(batchNo,code) {
                 this.chooseCode = code
                 this.chooseBatchNo = batchNo
-                this.imageList = []
+                //this.imageList = []
                 this.isShowDetail = true
                 web({ action: 'getDetail', batchNo: batchNo, code: code }).then(res => {
                     this.receiptList = JSON.parse(res.data.result1)
                     this.reimburseList = JSON.parse(res.data.result2)
-                    this.receiptList.forEach((v, i) => {
-                        if (v.ReceiptAttachment !== '')
-                            this.imageList.push(v.ReceiptAttachment)
-                    })
+                    //this.receiptList.forEach((v, i) => {
+                    //    if (v.ReceiptAttachment !== '')
+                    //        this.imageList.push(v.ReceiptAttachment)
+                    //})
                 })
             },
             onChange(index) {

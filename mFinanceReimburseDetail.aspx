@@ -55,7 +55,7 @@
                         style="line-height: inherit;padding-left:10px">
                     </van-icon>
                 </van-cell>
-                <van-uploader style="margin-left:10px" multiple :before-read="beforeRead" :after-read="afterRead" :preview-image="previewImage" max-size="8000000" :oversize="overSize"/>
+                <van-uploader style="margin-left:10px" multiple :before-read="beforeRead" :after-read="afterRead" :preview-image="previewImage"/>
             </van-cell-group>
         </mu-paper>
         <van-divider>发票明细</van-divider>
@@ -219,7 +219,7 @@
                 if (this.chooseReimburseCode.length === 0) {
                     this.$toast('请先选择关联的单据号')
                     return
-                } else if (this.reimburseType === '无') {
+                } else if (this.reimburseType === '无' || this.reimburseType === '') {
                     this.$toast('请选择发票用途')
                     return
                 } else if (this.receiptDesc === '') {
@@ -460,13 +460,13 @@
                             else if (templateType == "10103")
                                 tempData['feeType'] = '增值税普通发票(卷票)'
 
-                            if (templateType == "10102" && ('客运服务费'.indexOf(info.kind) > -1 || '通行费'.indexOf(info.kind) > -1))
+                            if (templateType == "10102" && (info.item_names.indexOf('客运服务费') > -1 || info.item_names.indexOf('通行费') > -1))
                                 tempData['receiptTax'] = info.tax;
                             else if (templateType == "10100")
                                 tempData['receiptTax'] = info.tax;
                             else
                                 tempData['receiptTax'] = 0;
-                            tempData['receiptPerson'] = ''
+                            tempData['receiptPerson'] = '<%=userInfo.userName%>'
                             tempData['activityDate'] = ''
                             tempData['sellerRegisterNum'] = info.buyer_tax_id
                         } else if (templateType == "10503") {
@@ -487,7 +487,7 @@
                             tempData['receiptTax'] = 0;
                             tempData['receiptNum'] = info.number;
                             tempData['receiptPlace'] = info.place
-                            tempData['receiptPerson'] = '无'
+                            tempData['receiptPerson'] = '<%=userInfo.userName%>'
                             tempData['activityDate'] = ''
                         } else if (templateType == "10400") {
                             tempData['feeType'] = '通用机打发票'
@@ -497,7 +497,7 @@
                             tempData['receiptTax'] = 0;
                             tempData['receiptNum'] = info.number;
                             tempData['receiptPlace'] = info.province + info.city
-                            tempData['receiptPerson'] = '无'
+                            tempData['receiptPerson'] = '<%=userInfo.userName%>'
                             tempData['activityDate'] = ''
                         } else if (templateType == "10506") {
                             tempData['feeType'] = '飞机票'
@@ -516,7 +516,7 @@
                             tempData['receiptTax'] = 0;
                             tempData['receiptNum'] = info.number;
                             tempData['receiptPlace'] = info.province + info.city
-                            tempData['receiptPerson'] = '无'
+                            tempData['receiptPerson'] = '<%=userInfo.userName%>'
                             tempData['receiptDate'] = ''
                             tempData['activityDate'] = ''
                         } else if (templateType == "10505") {
@@ -538,7 +538,7 @@
                             tempData['receiptTax'] = 0;
                             tempData['receiptPlace'] = '';
                             tempData['receiptNum'] = '';
-                            tempData['receiptPerson'] = '无'
+                            tempData['receiptPerson'] = '<%=userInfo.userName%>'
                             tempData['activityDate'] = ''
                         }
 

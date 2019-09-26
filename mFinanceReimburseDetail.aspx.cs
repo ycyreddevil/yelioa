@@ -15,6 +15,8 @@ using Image = System.Drawing.Image;
 
 public partial class mFinanceReimburseDetail : System.Web.UI.Page
 {
+    public UserInfo userInfo;
+
     protected void Page_Load(object sender, EventArgs e)
     {
         WxCommon wx = new WxCommon("mFinanceReimburseDetail",
@@ -31,6 +33,8 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
         }
 
         string action = Request.Params["action"];
+
+        userInfo = (UserInfo)Session["user"];
 
         if (!string.IsNullOrEmpty(action))
         {
@@ -137,12 +141,11 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
             string token = CalculateMD5Hash("5d883630+"+ timeStamp + "+3dcae883c9b3fec8b114c9c89493f85a");
 
             ////压缩图片的存储路径
-            //string reducedUrl = _filePath.Substring(0, _filePath.LastIndexOf("\\") + 1) + Guid.NewGuid().ToString() + ".jpg";
-
-            //CompressImage(_filePath, reducedUrl, 90, 100, true);
+            string reducedPath = _filePath.Substring(0, _filePath.LastIndexOf("\\") + 1) + Guid.NewGuid().ToString() + ".jpg";
+            CompressImage(_filePath, reducedPath, 80, 1000, false);
 
             //// 获取压缩图片的base64编码
-            //string reducedBase64 = ImgToBase64String(reducedUrl);
+            string reducedBase64 = ImgToBase64String(reducedPath);
 
             // 旋转图片
             //originBase64 = OrientationImage(access_token, originBase64, Base64StringToImage(originBase64, _filePath));
@@ -154,7 +157,7 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
                 { "app_key", "5d883630" },
                 { "timestamp", timeStamp.ToString() },
                 { "token", token },
-                { "image_data", originBase64 }
+                { "image_data", reducedBase64 }
             };
 
             string url = string.Format("https://fapiao.glority.cn/v1/item/get_multiple_items_info");
@@ -187,12 +190,12 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
                 int x1 = int.Parse(regionList[2]);
                 int y1 = int.Parse(regionList[3]);
 
-                string newPath = cutPicture(_filePath, x0, y0, x1 - x0, y1 - y0, i);
+                string newPath = cutPicture(reducedPath, x0, y0, x1 - x0, y1 - y0, i);
 
                 if (orientation != "0")
                 {
                     originBase64 = OrientationImage(new Bitmap(newPath), orientation);
-                    Base64StringToImage(originBase64, newPath);
+                    Base64StringToImage(reducedBase64, newPath);
                 }
 
                 newPath = newPath.Replace("\\", "/");
@@ -465,7 +468,8 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
             }
 
             // 发票验真伪
-            if (temp["feeType"] != null && temp["feeType"].ToString() != "电子普通发票" && temp["feeType"].ToString() != "专用发票" && temp["feeType"].ToString() != "火车票" && temp["feeType"].ToString() != "飞机票")
+            if (temp["feeType"] != null && temp["feeType"].ToString() != "增值税专用发票" && !temp["feeType"].ToString().Contains("增值税普通发票") 
+                && temp["feeType"].ToString() != "增值税电子普通发票" && temp["feeType"].ToString() != "火车票" && temp["feeType"].ToString() != "飞机票")
             {
                 string receiptPlace = temp["receiptPlace"].ToString();
                 string province = receiptPlace.Substring(0, receiptPlace.IndexOf("省"));
