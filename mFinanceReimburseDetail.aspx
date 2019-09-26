@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <meta http-equiv="Access-Control-Allow-Origin" content="*" />
     <meta name="description" content="" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vant@2.0/lib/index.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vant@2.2/lib/index.css">
     <link rel="stylesheet" href="https://unpkg.com/muse-ui/dist/muse-ui.css">
     <link rel="stylesheet" href="https://cdn.bootcss.com/material-design-icons/3.0.1/iconfont/material-icons.css">
     <style>
@@ -64,7 +64,7 @@
             <van-cell-group>
                 <van-row v-show="temp.receiptType != '实报实销'">
                     <van-col span="8">
-                        <van-image @click="isImagePreviewShow = true; photoList = [];photoList.push(temp.receiptAttachment)" style="margin-left:10px" width="100" height="100" fit="contain" :src="temp.receiptAttachment">
+                        <van-image @click="isImagePreviewShow = true; photoList = [];photoList.push(temp.receiptAttachment);location.hash='xxx'" style="margin-left:10px" width="100" height="100" fit="contain" :src="temp.receiptAttachment">
                             <template v-slot:loading>
                                 <van-loading type="spinner" size="20" />
                             </template>
@@ -83,7 +83,7 @@
                 <van-field v-show="temp.receiptType != '实报实销'" v-model="temp.receiptNum" required label="发票号码" 
                     right-icon="question-o" @click-right-icon="$toast('请核对识别的发票号码是否正确，若不正确，请修改，否则无法正常提交')"></van-field>
                 <van-field type="number" v-model="temp.receiptAmount" required :label="temp.receiptType != '实报实销' ? '发票金额' : '补贴金额'"></van-field>
-                <van-field v-model="temp.receiptPerson" clearable required label="发票人" 
+                <van-field v-model="temp.receiptPerson" v-show="temp.receiptType != '实报实销'" clearable required label="发票人" 
                     right-icon="question-o" @click-right-icon="$toast('除实名制火车票、飞机票、汽车票，其余都填无即可')" placeholder="除实名制火车飞机汽车票，其余填无"></van-field>
                 <van-field v-show="temp.receiptType != '实报实销'" v-model="temp.relativePerson" clearable required label="同行人"
                     right-icon="question-o" @click-right-icon="$toast('没有填无')" placeholder="没有填无"></van-field>
@@ -136,7 +136,7 @@
             <van-datetime-picker v-model="nowDate" @cancel="cancelEndDate" @confirm="confirmEndDate" type="datetime" :formatter="formatter"></van-datetime-picker>
         </van-popup>
         <!--图片预览-->
-        <van-image-preview
+        <van-image-preview close-on-popstate 
           v-model="isImagePreviewShow"
           :images="photoList">
           <template v-slot:index>第1页</template>
@@ -153,7 +153,7 @@
     </div>
 </body>
 <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/vant@2.0/lib/vant.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vant@2.2/lib/vant.min.js"></script>
 <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
 <script src="https://unpkg.com/muse-ui/dist/muse-ui.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@vant/touch-emulator"></script>
@@ -219,7 +219,7 @@
                 if (this.chooseReimburseCode.length === 0) {
                     this.$toast('请先选择关联的单据号')
                     return
-                } else if (this.reimburseType === '无' || this.reimburseType === '') {
+                } else if (!this.reimburseType || this.reimburseType === '无' || this.reimburseType === '') {
                     this.$toast('请选择发票用途')
                     return
                 } else if (this.receiptDesc === '') {
@@ -273,7 +273,6 @@
                     batchNo: this.chooseBatchNo,
                     code: JSON.stringify(this.chooseReimburseCode),
                     receipt: JSON.stringify(this.receiptList),
-                    isSpecialSubmit: this.isSpecialSubmit,
                     receiptDesc: this.receiptDesc
                 }).then(res => {
                     this.$toast.clear();
@@ -565,15 +564,23 @@
                 })
             },
             appendAllowance() {
-                this.allowanceMap = {}
-                this.allowanceMap['receiptType'] = '实报实销'
-                this.allowanceMap['receiptAmount'] = '';
-                this.allowanceMap['receiptDesc'] = ''
-                this.allowanceMap['receiptPerson'] = '无'
-                this.allowanceMap['receiptPlace'] = ''
-                this.allowanceMap['activityDate'] = ''
-                this.allowanceMap['activityEndDate'] = ''
-                this.receiptList.push(this.allowanceMap)
+                this.$dialog.confirm({
+                  title: '提示',
+                  message: '确认新增无票出差补贴吗'
+                }).then(() => {
+                  this.allowanceMap = {}
+                    this.allowanceMap['receiptType'] = '实报实销'
+                    this.allowanceMap['receiptAmount'] = '';
+                    this.allowanceMap['receiptDesc'] = this.receiptDesc
+                    //this.allowanceMap['receiptPerson'] = '无'
+                    this.allowanceMap['receiptPlace'] = ''
+                    this.allowanceMap['activityDate'] = ''
+                    this.allowanceMap['activityEndDate'] = ''
+                    this.receiptList.unshift (this.allowanceMap)
+                }).catch(() => {
+                  // on cancel
+                });
+                
             },
             removeAllowance() {
                 this.receiptList.splice(this.receiptList.indexOf(this.allowanceMap), 1)
@@ -588,10 +595,22 @@
             }
         },
         mounted: function () {
-            history.pushState(null, null, document.URL);
-            window.addEventListener('popstate', function () {
-                history.pushState(null, null, document.URL);
-            });
+            //history.pushState(null, null, document.URL);
+            //window.addEventListener('popstate', function () {
+            //    history.pushState(null, null, document.URL);
+            //});
+            const _this = this
+            window.onbeforeunload = function(){
+                web({
+                    action: 'draft',
+                    batchNo: _this.chooseBatchNo,
+                    code: JSON.stringify(_this.chooseReimburseCode),
+                    receipt: JSON.stringify(_this.receiptList),
+                    receiptDesc: _this.receiptDesc
+                }).then(res => {
+                    
+                })
+            }
             if (GetQueryString('batchNo')) {
                 // 重新提交 把原始数据带回
                 const batchNo = GetQueryString('batchNo')
@@ -607,10 +626,30 @@
                     })
                     //constPhoteList = this.photoList
                 })
+            } else {
+                // 是否找回草稿
+                web({ action: 'getDraftData'}).then(res => {
+                    const data = res.data
+                    if (data.length > 0) {
+                        const batchNo = data[0].batchNo
+                        this.chooseBatchNo = batchNo
+                        web({ action: 'getReSubmitData', batchNo: batchNo }).then(res => {
+                            const data = res.data
+                            this.receiptList = data
+                            data.forEach((v, i) => {
+                                //if (v['receiptAttachment'] !== '')
+                                //    this.photoList.push({ url: v['receiptAttachment'] })
+                                if (v['receiptType'] === '实报实销')
+                                    this.allowanceMap = v
+                            })
+                            //constPhoteList = this.photoList
+                        })
+                    }
+                })
             }
         },
         destroyed() {
-            window.removeEventListener('popstate', this.goBack, false);
+            //window.removeEventListener('popstate', this.goBack, false);
         },
     })
 </script>

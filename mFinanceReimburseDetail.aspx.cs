@@ -55,9 +55,17 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
             {
                 Response.Write(submit());
             }
+            else if (action == "draft")
+            {
+                Response.Write(draft());
+            }
             else if (action == "getReSubmitData")
             {
                 Response.Write(getReSubmitData());
+            }
+            else if (action == "getDraftData")
+            {
+                Response.Write(getDraftData());
             }
             Response.End();
         }
@@ -402,6 +410,65 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
         return Convert.ToBase64String(arr);
     }
 
+    private string draft()
+    {
+        List<string> codeList = JsonHelper.DeserializeJsonToList<string>(Request.Params["code"]);
+        List<JObject> receiptList = JsonHelper.DeserializeJsonToList<JObject>(Request.Params["receipt"]);
+        string batchNo = Request.Form["batchNo"].ToString();
+        string receiptDesc = Request.Form["receiptDesc"].ToString();
+
+        JObject result = new JObject(); // 返回结果jobject
+
+        string codeString = "";
+        foreach (string code in codeList)
+        {
+            codeString += code + ",";
+        }
+
+        // 生成批次号
+        if (string.IsNullOrEmpty(batchNo))
+            batchNo = Guid.NewGuid().ToString("N");
+
+        foreach (JObject temp in receiptList)
+        {
+            if (temp.Property("code") != null)
+                temp.Add("code", codeString);
+            if (temp.Property("status") != null)
+                temp.Add("status", "草稿");
+            if (temp.Property("createTime") != null)
+                temp.Add("createTime", DateTime.Now);
+            if (temp.Property("batchNo") != null)
+                temp.Add("batchNo", batchNo);
+            if (temp.Property("receiptDesc") != null)
+                temp.Add("receiptDesc", receiptDesc);
+            if (temp.Property("submitterId") != null)
+                temp.Add("submitterId", userInfo.userId.ToString());
+        }
+
+        foreach (JObject temp in receiptList)
+        {
+            temp.Remove("sellerRegisterNum");
+        }
+
+        string sql = string.Format("delete from yl_reimburse_detail where batchNo = '{0}';", batchNo);
+        sql += SqlHelper.GetInsertString(receiptList, "yl_reimburse_detail");
+
+        string msg = SqlHelper.Exce(sql);
+
+        if (msg.Contains("操作成功"))
+        {
+            result.Add("code", 200);
+            result.Add("msg", "操作成功");
+        }
+        else
+        {
+            result.Add("code", 500);
+            result.Add("msg", msg);
+        }
+
+        return result.ToString();
+    }
+
     private string submit()
     {
         List<string> codeList = JsonHelper.DeserializeJsonToList<string>(Request.Params["code"]);
@@ -433,6 +500,7 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
             temp.Add("createTime", DateTime.Now);
             temp.Add("batchNo", batchNo);
             temp.Add("receiptDesc", receiptDesc);
+            temp.Add("submitterId", userInfo.userId);
 
             DataTable dt = new DataTable();
 
@@ -880,6 +948,17 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
 
         string sql = string.Format("select feeType,receiptType,receiptCode,receiptNum,receiptDate,activityDate,activityEndDate,receiptAmount,receiptPerson,relativePerson," +
             "receiptTax,receiptPlace,receiptDesc,receiptAttachment from yl_reimburse_detail where batchNo = '{0}'", batchNo);
+
+        DataTable dt = SqlHelper.Find(sql).Tables[0];
+
+        return JsonHelper.DataTable2Json(dt);
+    }
+
+    private string getDraftData()
+    {
+        string userId = userInfo.userId.ToString();
+
+        string sql = string.Format("select batchNo from yl_reimburse_detail where submitterId = '{0}' and status = '草稿' ", userId);
 
         DataTable dt = SqlHelper.Find(sql).Tables[0];
 
