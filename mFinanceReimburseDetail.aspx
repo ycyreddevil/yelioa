@@ -73,18 +73,26 @@
                     <van-col span="8" offset="8"><mu-button @click="isDeleteDetail = true; clickIndex = index" style="float:right" icon color="red"><mu-icon value="delete"></mu-icon></mu-button></van-col>
                 </van-row>
                 <van-field v-show="temp.receiptType != '实报实销'" required readonly label="发票用途" v-model="temp.receiptType" @click="showReimburseType(index)"></van-field>
+                
                 <van-field v-show="temp.receiptType != '实报实销'" v-model="temp.receiptDate" clearable required label="发票日期"></van-field>
+                
                 <van-field required v-model="temp.activityDate" readonly label="费用发生日期" @click="showDate(index)" 
                     right-icon="question-o" @click-right-icon="$toast('出差补贴必须精确到小时分钟，其他精确到日期即可')"></van-field>
+                
                 <van-field required v-show="temp.receiptType == '实报实销' || temp.receiptType == '住宿费'" v-model="temp.activityEndDate" readonly label="费用结束日期" @click="showEndDate(index)" 
                     right-icon="question-o" @click-right-icon="$toast('出差补贴必须精确到小时分钟，其他精确到日期即可')"></van-field>
+                
                 <van-field v-show="temp.receiptType != '实报实销'" v-model="temp.receiptCode" clearable required label="发票代码" 
                     right-icon="question-o" @click-right-icon="$toast('请核对识别的发票编号是否正确，若不正确，请修改，否则无法正常提交')"></van-field>
-                <van-field v-show="temp.receiptType != '实报实销'" v-model="temp.receiptNum" required label="发票号码" 
-                    right-icon="question-o" @click-right-icon="$toast('请核对识别的发票号码是否正确，若不正确，请修改，否则无法正常提交')"></van-field>
+                
+                <van-field v-show="temp.feeType.indexOf('增值税') > -1" v-model="temp.sellerRegisterNum" clearable required label="纳税人识别号" 
+                    right-icon="question-o" @click-right-icon="$toast('请确定纳税人识别号与所选公司匹配，若不正确，请修改，否则无法正常提交')"></van-field>
+                
                 <van-field type="number" v-model="temp.receiptAmount" required :label="temp.receiptType != '实报实销' ? '发票金额' : '补贴金额'"></van-field>
+
                 <van-field v-model="temp.receiptPerson" v-show="temp.receiptType != '实报实销'" clearable required label="发票人" 
                     right-icon="question-o" @click-right-icon="$toast('除实名制火车票、飞机票、汽车票，其余都填无即可')" placeholder="除实名制火车飞机汽车票，其余填无"></van-field>
+                
                 <van-field v-show="temp.receiptType != '实报实销'" v-model="temp.relativePerson" clearable required label="同行人"
                     right-icon="question-o" @click-right-icon="$toast('没有填无')" placeholder="没有填无"></van-field>
                 <%--<van-field v-show="temp.receiptType != '出差补贴'" type="number" readonly v-model="temp.receiptTax" required label="发票税额" 
@@ -218,9 +226,6 @@
             submit() {
                 if (this.chooseReimburseCode.length === 0) {
                     this.$toast('请先选择关联的单据号')
-                    return
-                } else if (!this.reimburseType || this.reimburseType === '无' || this.reimburseType === '') {
-                    this.$toast('请选择发票用途')
                     return
                 } else if (this.receiptDesc === '') {
                     this.$toast('请填写描述')
@@ -600,17 +605,44 @@
             //    history.pushState(null, null, document.URL);
             //});
             const _this = this
-            window.onbeforeunload = function(){
-                web({
-                    action: 'draft',
-                    batchNo: _this.chooseBatchNo,
-                    code: JSON.stringify(_this.chooseReimburseCode),
-                    receipt: JSON.stringify(_this.receiptList),
-                    receiptDesc: _this.receiptDesc
-                }).then(res => {
-                    
-                })
+
+            let isIOS = false
+
+            var userAgentInfo = navigator.userAgent;
+            var Agents = ["iPhone", "iPad"];
+            for (var v = 0; v < Agents.length; v++) {
+                if (userAgentInfo.indexOf(Agents[v]) > 0) {
+                    isIOS = true;
+                    break;
+                }
             }
+
+            if (isIOS) {
+                window.addEventListener('pagehide', function () {
+                    web({
+                        action: 'draft',
+                        batchNo: _this.chooseBatchNo,
+                        code: JSON.stringify(_this.chooseReimburseCode),
+                        receipt: JSON.stringify(_this.receiptList),
+                        receiptDesc: _this.receiptDesc
+                    }).then(res => {
+
+                    })
+                })
+            } else {
+                window.onbeforeunload = function () {
+                    web({
+                        action: 'draft',
+                        batchNo: _this.chooseBatchNo,
+                        code: JSON.stringify(_this.chooseReimburseCode),
+                        receipt: JSON.stringify(_this.receiptList),
+                        receiptDesc: _this.receiptDesc
+                    }).then(res => {
+
+                    })
+                }
+            }
+            
             if (GetQueryString('batchNo')) {
                 // 重新提交 把原始数据带回
                 const batchNo = GetQueryString('batchNo')
@@ -627,7 +659,7 @@
                     //constPhoteList = this.photoList
                 })
             } else {
-                // 是否找回草稿
+                // 找回草稿
                 web({ action: 'getDraftData'}).then(res => {
                     const data = res.data
                     if (data.length > 0) {
@@ -635,7 +667,15 @@
                         this.chooseBatchNo = batchNo
                         web({ action: 'getReSubmitData', batchNo: batchNo }).then(res => {
                             const data = res.data
-                            this.receiptList = data
+                            data.forEach((v, i) => {
+                                let map = {}
+                                Object.keys(v).forEach((v1, i1) => {
+                                    if (v[v1] && v[v1] !== '') {
+                                        map[v1] = v[v1]
+                                    }
+                                })
+                                this.receiptList.push(map)
+                            })
                             data.forEach((v, i) => {
                                 //if (v['receiptAttachment'] !== '')
                                 //    this.photoList.push({ url: v['receiptAttachment'] })

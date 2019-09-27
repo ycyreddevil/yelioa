@@ -428,26 +428,35 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
         // 生成批次号
         if (string.IsNullOrEmpty(batchNo))
             batchNo = Guid.NewGuid().ToString("N");
-
-        foreach (JObject temp in receiptList)
+        else
         {
-            if (temp.Property("code") != null)
-                temp.Add("code", codeString);
-            if (temp.Property("status") != null)
-                temp.Add("status", "草稿");
-            if (temp.Property("createTime") != null)
-                temp.Add("createTime", DateTime.Now);
-            if (temp.Property("batchNo") != null)
-                temp.Add("batchNo", batchNo);
-            if (temp.Property("receiptDesc") != null)
-                temp.Add("receiptDesc", receiptDesc);
-            if (temp.Property("submitterId") != null)
-                temp.Add("submitterId", userInfo.userId.ToString());
+            string tempSql = string.Format("select status from yl_reimburse_detail where batchNo = '{0}' limit 1", batchNo);
+
+            DataTable dt = SqlHelper.Find(tempSql).Tables[0];
+
+            if ("已提交".Equals(dt.Rows[0][0].ToString()))
+            {
+                result.Add("code", 200);
+                result.Add("msg", "操作成功");
+
+                return result.ToString();
+            }
         }
 
         foreach (JObject temp in receiptList)
         {
-            temp.Remove("sellerRegisterNum");
+            if (temp.Property("code") == null)
+                temp.Add("code", codeString);
+            if (temp.Property("status") == null)
+                temp.Add("status", "草稿");
+            if (temp.Property("createTime") == null)
+                temp.Add("createTime", DateTime.Now);
+            if (temp.Property("batchNo") == null)
+                temp.Add("batchNo", batchNo);
+            if (temp.Property("receiptDesc") == null)
+                temp.Add("receiptDesc", receiptDesc);
+            if (temp.Property("submitterId") == null)
+                temp.Add("submitterId", userInfo.userId.ToString());
         }
 
         string sql = string.Format("delete from yl_reimburse_detail where batchNo = '{0}';", batchNo);
@@ -495,12 +504,17 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
 
         foreach (JObject temp in receiptList)
         {
-            temp.Add("code", codeString);
-            temp.Add("status", "已提交");
-            temp.Add("createTime", DateTime.Now);
-            temp.Add("batchNo", batchNo);
-            temp.Add("receiptDesc", receiptDesc);
-            temp.Add("submitterId", userInfo.userId);
+            temp["status"] = "已提交";
+            if (temp.Property("code") == null)
+                temp.Add("code", codeString);
+            if (temp.Property("createTime") == null)
+                temp.Add("createTime", DateTime.Now);
+            if (temp.Property("batchNo") == null)
+                temp.Add("batchNo", batchNo);
+            if (temp.Property("receiptDesc") == null)
+                temp.Add("receiptDesc", receiptDesc);
+            if (temp.Property("submitterId") == null)
+                temp.Add("submitterId", userInfo.userId.ToString());
 
             DataTable dt = new DataTable();
 
@@ -524,7 +538,7 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
             }
 
             // 发票查重
-            string checkDuplicateSql = string.Format("select 1 from yl_reimburse_detail where receiptCode = '{0}' and receiptNum = '{1}' and status != '拒绝'", temp["receiptCode"], temp["receiptNum"]);
+            string checkDuplicateSql = string.Format("select 1 from yl_reimburse_detail where receiptCode = '{0}' and receiptNum = '{1}' and status = '同意'", temp["receiptCode"], temp["receiptNum"]);
 
             DataTable checkDuplicateDt = SqlHelper.Find(checkDuplicateSql).Tables[0];
 
@@ -883,35 +897,12 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
             totalReceiptAmount += double.Parse(temp["receiptAmount"].ToString());
         }
 
-        foreach (string code in codeList)
-        {
-            // 更新单据可用额度
-            double remain_fee_amount = double.Parse(SqlHelper.Find(string.Format("select remain_fee_amount from yl_reimburse where code = '{0}'", code)).Tables[0].Rows[0][0].ToString());
-            string tempSql = "";
-            if (remain_fee_amount >= totalReceiptAmount)
-            {
-                tempSql = string.Format("update yl_reimburse set remain_fee_amount = {0} where code = '{1}'", (remain_fee_amount - totalReceiptAmount), code);
-                SqlHelper.Exce(tempSql);
-                break;
-            }
-            else
-            {
-                tempSql = string.Format("update yl_reimburse set remain_fee_amount = {0} where code = '{1}'", 0, code);
-                totalReceiptAmount -= remain_fee_amount;
-                SqlHelper.Exce(tempSql);
-            }
-        }
         string sql = "";
 
         if (isReSubmit)
         {
             // 如果是被拒绝后重新提交 则删除之前记录再新增
             sql += string.Format("delete from yl_reimburse_detail where batchNo = '{0}';", batchNo);
-        }
-
-        foreach (JObject temp in receiptList)
-        {
-            temp.Remove("sellerRegisterNum");
         }
 
         sql += SqlHelper.GetInsertString(receiptList, "yl_reimburse_detail");
@@ -923,10 +914,29 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
             result.Add("code", 200);
             result.Add("msg", "操作成功");
 
+            // 更新单据可用额度
+            foreach (string code in codeList)
+            {
+                double remain_fee_amount = double.Parse(SqlHelper.Find(string.Format("select remain_fee_amount from yl_reimburse where code = '{0}'", code)).Tables[0].Rows[0][0].ToString());
+                string tempSql = "";
+                if (remain_fee_amount >= totalReceiptAmount)
+                {
+                    tempSql = string.Format("update yl_reimburse set remain_fee_amount = {0} where code = '{1}'", (remain_fee_amount - totalReceiptAmount), code);
+                    SqlHelper.Exce(tempSql);
+                    break;
+                }
+                else
+                {
+                    tempSql = string.Format("update yl_reimburse set remain_fee_amount = {0} where code = '{1}'", 0, code);
+                    totalReceiptAmount -= remain_fee_amount;
+                    SqlHelper.Exce(tempSql);
+                }
+            }
+
             UserInfo user = (UserInfo)Session["user"];
             // 发送审批消息给财务进行审批
             WxNetSalesHelper wxNetSalesHelper = new WxNetSalesHelper("v5afj_CYpboe-JWNOrCU0Cy-xP5krFq6cWYM9KZfe4o", "发票上报", "1000020");
-            //// 给待审批人发送消息
+            //// 给待审批人发送消息 
             wxNetSalesHelper.GetJsonAndSendWxMsg("18100661|19080720", "请及时审批 提交人为:" + user.userName
                 + "的发票,谢谢!", "http://yelioa.top//mApprovalReimburseDetail.aspx", "1000020");
 
@@ -947,7 +957,7 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
         string batchNo = Request.Form["batchNo"];
 
         string sql = string.Format("select feeType,receiptType,receiptCode,receiptNum,receiptDate,activityDate,activityEndDate,receiptAmount,receiptPerson,relativePerson," +
-            "receiptTax,receiptPlace,receiptDesc,receiptAttachment from yl_reimburse_detail where batchNo = '{0}'", batchNo);
+            "receiptTax,receiptPlace,receiptDesc,receiptAttachment,sellerRegisterNum from yl_reimburse_detail where batchNo = '{0}'", batchNo);
 
         DataTable dt = SqlHelper.Find(sql).Tables[0];
 

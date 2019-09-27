@@ -32,14 +32,6 @@ public partial class mFinanceReimburse : System.Web.UI.Page
 
         user = (UserInfo)Session["user"];
 
-        //if (user.userName == "杨海敏")
-        //{
-        //    Response.Clear();
-        //    Response.Write("<script language='javascript'>alert('就你一个与报销无缘了~')</script>");
-        //    Response.End();
-        //    return;
-        //}
-
         string action = Request.Form["act"];
 
         if (Common.GetApplicationValid("mFinanceReimburse.aspx") == "0" && !"uploadReimburseImage".Equals(action) && !"deleteReimburseImage".Equals(action))

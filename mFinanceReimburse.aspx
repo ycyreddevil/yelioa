@@ -506,7 +506,7 @@
                     type: 'post',
                     success: function (childrenData) {
                         //////////////////////////////////////////////Add by yyy 市场推广活动需要填写项目申请编号
-                        if (data == "推广活动市场费" || data == "推广活动开发费" || data == "推广活动渠道费") {
+                        if (data == "推广活动市场费" || data == "推广活动渠道费") {
                             $("#acProjectLi").css("display", "block");
                             IsMarketingActivity = true;
                         } else {

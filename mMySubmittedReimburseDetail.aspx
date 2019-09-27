@@ -61,19 +61,18 @@
                 left-arrow
                 @click-left="back">
             </van-nav-bar>
-            <van-divider v-show="imageList.length > 0">发票图片</van-divider>
-            <van-image v-show="imageList.length > 0" v-for="(temp,index) in receiptList"
-                width="100"
-                height="100"
-                fit="cover"
-                :src="temp.ReceiptAttachment" 
-                style="margin:5px"
-                @click="isImagePreviewShow = true; imageList = []; imageList.push(temp.ReceiptAttachment)">
-                <template v-slot:error>加载失败</template>
-            </van-image>
             <van-divider>发票明细</van-divider>
             <mu-paper class="demo-paper" :z-depth="1" style="margin:10px" v-for="(temp,index) in receiptList">
                 <van-cell-group>
+                    <van-image
+                        width="100"
+                        height="100"
+                        fit="cover"
+                        :src="temp.ReceiptAttachment" 
+                        style="margin:10px"
+                        @click="isImagePreviewShow = true; imageList = []; imageList.push(temp.ReceiptAttachment)">
+                        <template v-slot:error>加载失败</template>
+                    </van-image>
                     <van-field readonly label="发票用途" v-model="temp.ReceiptType"></van-field>
                     <van-field v-show="temp.ReceiptType != '出差补贴'" v-model="temp.ReceiptDate" readonly label="发票日期"></van-field>
                     <van-field v-model="temp.ActivityDate" readonly label="费用发生日期"></van-field>

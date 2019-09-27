@@ -37,7 +37,7 @@
                   </mu-avatar>
                 </mu-list-item-action>
                 <mu-list-item-content>
-                  <mu-list-item-title>发票用途：{{temp.CreateTime}}</mu-list-item-title>
+                  <mu-list-item-title>发票提交人：{{temp.userName}}</mu-list-item-title>
                   <mu-list-item-sub-title>
                     金额：{{temp.ReceiptAmount}}
                   </mu-list-item-sub-title>
