@@ -216,7 +216,7 @@ public partial class mApprovalReimburseDetail : System.Web.UI.Page
                     continue;
 
                 sql += string.Format("update yl_reimburse set remain_fee_amount = (fee_amount - (select ifnull(sum(receiptAmount), 0) from yl_reimburse_detail " +
-                    "where code like '%{0}%' and status != '拒绝')) where code = '{0}';", tempCode);
+                    "where code like '%{0}%' and status = '同意')) where code = '{0}';", tempCode);
             }
 
             SqlHelper.Exce(sql);

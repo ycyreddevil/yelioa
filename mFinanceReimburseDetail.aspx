@@ -83,9 +83,12 @@
                     right-icon="question-o" @click-right-icon="$toast('出差补贴必须精确到小时分钟，其他精确到日期即可')"></van-field>
                 
                 <van-field v-show="temp.receiptType != '实报实销'" v-model="temp.receiptCode" clearable required label="发票代码" 
-                    right-icon="question-o" @click-right-icon="$toast('请核对识别的发票编号是否正确，若不正确，请修改，否则无法正常提交')"></van-field>
+                    right-icon="question-o" @click-right-icon="$toast('请核对识别的发票代码是否正确，若不正确，请修改，否则无法正常提交')"></van-field>
+
+                <van-field v-show="temp.receiptType != '实报实销'" v-model="temp.receiptNum" clearable required label="发票号码" 
+                    right-icon="question-o" @click-right-icon="$toast('请核对识别的发票号码是否正确，若不正确，请修改，否则无法正常提交')"></van-field>
                 
-                <van-field v-show="temp.feeType.indexOf('增值税') > -1" v-model="temp.sellerRegisterNum" clearable required label="纳税人识别号" 
+                <van-field v-show="temp.feeType && temp.feeType.indexOf('增值税') > -1" v-model="temp.sellerRegisterNum" clearable required label="纳税人识别号" 
                     right-icon="question-o" @click-right-icon="$toast('请确定纳税人识别号与所选公司匹配，若不正确，请修改，否则无法正常提交')"></van-field>
                 
                 <van-field type="number" v-model="temp.receiptAmount" required :label="temp.receiptType != '实报实销' ? '发票金额' : '补贴金额'"></van-field>
@@ -236,7 +239,7 @@
                 for (let temp of this.receiptList) {
                     let flag = true
                     let msg = ''
-                    Object.keys(temp).forEach((v, i) => {
+                    /**Object.keys(temp).forEach((v, i) => {
                         if (temp[v] === '') {
                             msg = v+'不合法,请重新确认！'
                             flag = false
@@ -246,7 +249,7 @@
                     if (!flag) {
                         this.$toast(msg)
                         return
-                    }
+                    }*/
                     if (temp['feeType'] != '火车票' && temp['feeType'] != '飞机票') {
                         if (temp['receiptPlace'].indexOf('省') === -1 && (temp['receiptPlace'] !== '北京市'
                             && temp['receiptPlace'] !== '上海市' && temp['receiptPlace'] !== '天津市' && temp['receiptPlace'] !== '重庆市')) {
@@ -449,12 +452,6 @@
                         tempData['relativePerson'] = '无'
                         tempData["receiptAttachment"] = url
                         if (templateType == "10100" || templateType == "10101" || templateType == "10102" || templateType == "10103") {  // 增值税发票
-                            tempData['receiptDate'] = info.date;
-                            tempData['receiptCode'] = info.code;
-                            tempData['receiptAmount'] = info.total;
-                            tempData['receiptPlace'] = info.province+info.city;
-                            tempData['receiptNum'] = info.number;
-
                             if (templateType == "10100")
                                 tempData['feeType'] = '增值税专用发票'
                             else if (templateType == "10101")
@@ -464,14 +461,20 @@
                             else if (templateType == "10103")
                                 tempData['feeType'] = '增值税普通发票(卷票)'
 
+                            tempData['receiptDate'] = info.date;
+                            tempData['receiptCode'] = info.code;
+                            tempData['receiptAmount'] = info.total;
                             if (templateType == "10102" && (info.item_names.indexOf('客运服务费') > -1 || info.item_names.indexOf('通行费') > -1))
                                 tempData['receiptTax'] = info.tax;
                             else if (templateType == "10100")
                                 tempData['receiptTax'] = info.tax;
                             else
                                 tempData['receiptTax'] = 0;
+                            tempData['receiptPlace'] = info.province+info.city;
+                            tempData['receiptNum'] = info.number;
                             tempData['receiptPerson'] = '<%=userInfo.userName%>'
                             tempData['activityDate'] = ''
+                            tempData['activityEndDate'] = ''
                             tempData['sellerRegisterNum'] = info.buyer_tax_id
                         } else if (templateType == "10503") {
                             tempData['feeType'] = '火车票'
@@ -483,26 +486,32 @@
                             tempData['receiptNum'] = info.number;
                             tempData['receiptPerson'] = info.name
                             tempData['activityDate'] = ''
+                            tempData['activityEndDate'] = ''
+                            tempData['sellerRegisterNum'] = ''
                         } else if (templateType == "10500") {
                             tempData['feeType'] = '出租车票'
                             tempData['receiptDate'] = info.date;
                             tempData['receiptCode'] = info.code;
                             tempData['receiptAmount'] = info.total;
                             tempData['receiptTax'] = 0;
-                            tempData['receiptNum'] = info.number;
                             tempData['receiptPlace'] = info.place
+                            tempData['receiptNum'] = info.number;
                             tempData['receiptPerson'] = '<%=userInfo.userName%>'
                             tempData['activityDate'] = ''
+                            tempData['activityEndDate'] = ''
+                            tempData['sellerRegisterNum'] = ''
                         } else if (templateType == "10400") {
                             tempData['feeType'] = '通用机打发票'
                             tempData['receiptDate'] = info.date;
                             tempData['receiptCode'] = info.code;
                             tempData['receiptAmount'] = info.total;
                             tempData['receiptTax'] = 0;
-                            tempData['receiptNum'] = info.number;
                             tempData['receiptPlace'] = info.province + info.city
+                            tempData['receiptNum'] = info.number;
                             tempData['receiptPerson'] = '<%=userInfo.userName%>'
                             tempData['activityDate'] = ''
+                            tempData['activityEndDate'] = ''
+                            tempData['sellerRegisterNum'] = ''
                         } else if (templateType == "10506") {
                             tempData['feeType'] = '飞机票'
                             tempData['receiptDate'] = info.date;
@@ -513,37 +522,58 @@
                             tempData['receiptNum'] = info.number;
                             tempData['receiptPerson'] = info.user_name
                             tempData['activityDate'] = ''
+                            tempData['activityEndDate'] = ''
+                            tempData['sellerRegisterNum'] = ''
                         } else if (templateType == "10200") {
                             tempData['feeType'] = '定额发票'
+                            tempData['receiptDate'] = ''
                             tempData['receiptCode'] = info.code;
                             tempData['receiptAmount'] = info.total;
                             tempData['receiptTax'] = 0;
-                            tempData['receiptNum'] = info.number;
                             tempData['receiptPlace'] = info.province + info.city
+                            tempData['receiptNum'] = info.number;
                             tempData['receiptPerson'] = '<%=userInfo.userName%>'
-                            tempData['receiptDate'] = ''
                             tempData['activityDate'] = ''
+                            tempData['activityEndDate'] = ''
+                            tempData['sellerRegisterNum'] = ''
                         } else if (templateType == "10505") {
                             // 汽车票
                             tempData['feeType'] = '汽车票'
+                            tempData['receiptDate'] = info.date;
                             tempData['receiptCode'] = info.code;
                             tempData['receiptAmount'] = info.total;
                             tempData['receiptTax'] = 0;
-                            tempData['receiptNum'] = info.number;
                             tempData['receiptPlace'] = info.station_geton + '-' + info.station_getoff;
+                            tempData['receiptNum'] = info.number;
                             tempData['receiptPerson'] = info.name;
-                            tempData['receiptDate'] = info.date;
                             tempData['activityDate'] = ''
-                        } else {
-                            tempData['feeType'] = '其他票'
-                            tempData['receiptDate'] = '';
-                            tempData['receiptCode'] = '';
-                            tempData['receiptAmount'] = 0;
+                            tempData['activityEndDate'] = ''
+                            tempData['sellerRegisterNum'] = ''
+                        } else if (templateType == "10507") {
+                            // 汽车票
+                            tempData['feeType'] = '过桥过路票'
+                            tempData['receiptDate'] = info.date
+                            tempData['receiptCode'] = info.code;
+                            tempData['receiptAmount'] = info.total;
                             tempData['receiptTax'] = 0;
-                            tempData['receiptPlace'] = '';
-                            tempData['receiptNum'] = '';
+                            tempData['receiptPlace'] = ''
+                            tempData['receiptNum'] = info.number;
                             tempData['receiptPerson'] = '<%=userInfo.userName%>'
                             tempData['activityDate'] = ''
+                            tempData['activityEndDate'] = ''
+                            tempData['sellerRegisterNum'] = ''
+                        } else {
+                            tempData['feeType'] = '其他票'
+                            tempData['receiptDate'] = ''
+                            tempData['receiptCode'] = ''
+                            tempData['receiptAmount'] = ''
+                            tempData['receiptTax'] = ''
+                            tempData['receiptPlace'] = ''
+                            tempData['receiptNum'] = ''
+                            tempData['receiptPerson'] = '<%=userInfo.userName%>'
+                            tempData['activityDate'] = ''
+                            tempData['activityEndDate'] = ''
+                            tempData['sellerRegisterNum'] = ''
                         }
 
                         this.receiptList.push(tempData)
@@ -573,15 +603,23 @@
                   title: '提示',
                   message: '确认新增无票出差补贴吗'
                 }).then(() => {
-                  this.allowanceMap = {}
+                    this.allowanceMap = {}
+                    this.allowanceMap['relativePerson'] = ''
+                    this.allowanceMap["receiptAttachment"] = ''
                     this.allowanceMap['receiptType'] = '实报实销'
-                    this.allowanceMap['receiptAmount'] = '';
-                    this.allowanceMap['receiptDesc'] = this.receiptDesc
-                    //this.allowanceMap['receiptPerson'] = '无'
+                    this.allowanceMap['feeType'] = '实报实销'
+                    this.allowanceMap['receiptDate'] = ''
+                    this.allowanceMap['receiptCode'] = ''
+                    this.allowanceMap['receiptAmount'] = 0
+                    this.allowanceMap['receiptTax'] = ''
+                    this.allowanceMap['receiptPlace'] = ''
+                    this.allowanceMap['receiptNum'] = '';
+                    this.allowanceMap['receiptPerson'] = ''
                     this.allowanceMap['receiptPlace'] = ''
                     this.allowanceMap['activityDate'] = ''
                     this.allowanceMap['activityEndDate'] = ''
-                    this.receiptList.unshift (this.allowanceMap)
+                    this.allowanceMap['sellerRegisterNum'] = ''
+                    this.receiptList.unshift(this.allowanceMap)
                 }).catch(() => {
                   // on cancel
                 });
@@ -667,15 +705,7 @@
                         this.chooseBatchNo = batchNo
                         web({ action: 'getReSubmitData', batchNo: batchNo }).then(res => {
                             const data = res.data
-                            data.forEach((v, i) => {
-                                let map = {}
-                                Object.keys(v).forEach((v1, i1) => {
-                                    if (v[v1] && v[v1] !== '') {
-                                        map[v1] = v[v1]
-                                    }
-                                })
-                                this.receiptList.push(map)
-                            })
+                            this.receiptList = data
                             data.forEach((v, i) => {
                                 //if (v['receiptAttachment'] !== '')
                                 //    this.photoList.push({ url: v['receiptAttachment'] })

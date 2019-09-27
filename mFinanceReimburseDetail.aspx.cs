@@ -519,7 +519,7 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
             DataTable dt = new DataTable();
 
             // 发票公司税号校验
-            if (temp["sellerRegisterNum"] != null)
+            if (!string.IsNullOrEmpty(temp["sellerRegisterNum"].ToString()))
             {
                 string sellerRegisterNum = temp["sellerRegisterNum"].ToString();
 
@@ -551,43 +551,43 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
             }
 
             // 发票验真伪
-            if (temp["feeType"] != null && temp["feeType"].ToString() != "增值税专用发票" && !temp["feeType"].ToString().Contains("增值税普通发票") 
-                && temp["feeType"].ToString() != "增值税电子普通发票" && temp["feeType"].ToString() != "火车票" && temp["feeType"].ToString() != "飞机票")
-            {
-                string receiptPlace = temp["receiptPlace"].ToString();
-                string province = receiptPlace.Substring(0, receiptPlace.IndexOf("省"));
+            //if (temp["feeType"] != null && temp["feeType"].ToString() != "增值税专用发票" && !temp["feeType"].ToString().Contains("增值税普通发票") 
+            //    && temp["feeType"].ToString() != "增值税电子普通发票" && temp["feeType"].ToString() != "火车票" && temp["feeType"].ToString() != "飞机票")
+            //{
+            //    string receiptPlace = temp["receiptPlace"].ToString();
+            //    string province = receiptPlace.Substring(0, receiptPlace.IndexOf("省"));
 
-                string validateMsg = "";
+            //    string validateMsg = "";
 
-                if (province == "江西")
-                {
-                    validateMsg = ReceiptValidate.JxHandWriting(temp["receiptNum"].ToString(), temp["receiptCode"].ToString());
+            //    if (province == "江西")
+            //    {
+            //        validateMsg = ReceiptValidate.JxHandWriting(temp["receiptNum"].ToString(), temp["receiptCode"].ToString());
 
-                    JObject tempJObject = JObject.Parse(validateMsg);
+            //        JObject tempJObject = JObject.Parse(validateMsg);
 
-                    if (tempJObject.Property("LX") == null || tempJObject.Property("LX").ToString() == "")
-                    {
-                        result.Add("code", 400);
-                        result.Add("msg", string.Format("发票代码:{0},发票号码:{1},此发票与税务机关信息不符,请确定发票代码和发票号码后重新提交！", temp["receiptCode"], temp["receiptNum"]));
+            //        if (tempJObject.Property("LX") == null || tempJObject.Property("LX").ToString() == "")
+            //        {
+            //            result.Add("code", 400);
+            //            result.Add("msg", string.Format("发票代码:{0},发票号码:{1},此发票与税务机关信息不符,请确定发票代码和发票号码后重新提交！", temp["receiptCode"], temp["receiptNum"]));
 
-                        return result.ToString();
-                    }
-                }
-                else if (province == "湖南")
-                {
-                    validateMsg = ReceiptValidate.HnQuotaInvoice(temp["receiptCode"].ToString(), temp["receiptNum"].ToString());
+            //            return result.ToString();
+            //        }
+            //    }
+            //    else if (province == "湖南")
+            //    {
+            //        validateMsg = ReceiptValidate.HnQuotaInvoice(temp["receiptCode"].ToString(), temp["receiptNum"].ToString());
 
-                    JObject tempJObject = JsonHelper.JsonDeserialize<JObject>(validateMsg);
+            //        JObject tempJObject = JsonHelper.JsonDeserialize<JObject>(validateMsg);
 
-                    if (tempJObject["status"].ToString() == "0")
-                    {
-                        result.Add("code", 400);
-                        result.Add("msg", string.Format("发票代码:{0},发票号码:{1},此发票与税务机关信息不符,请确定发票代码和发票号码后重新提交！", temp["receiptCode"], temp["receiptNum"]));
+            //        if (tempJObject["status"].ToString() == "0")
+            //        {
+            //            result.Add("code", 400);
+            //            result.Add("msg", string.Format("发票代码:{0},发票号码:{1},此发票与税务机关信息不符,请确定发票代码和发票号码后重新提交！", temp["receiptCode"], temp["receiptNum"]));
 
-                        return result.ToString();
-                    }
-                }
-            }
+            //            return result.ToString();
+            //        }
+            //    }
+            //}
 
             // 费用标准控制
             UserInfo user = (UserInfo)Session["user"];
@@ -602,7 +602,7 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
             if (dt != null && dt.Rows.Count > 0)
             {
                 string startTm = temp["activityDate"].ToString();
-                string endTm = temp["activityEndDate"] == null ? temp["activityDate"].ToString() : temp["activityEndDate"].ToString();
+                string endTm = string.IsNullOrEmpty(temp["activityEndDate"].ToString()) ? temp["activityDate"].ToString() : temp["activityEndDate"].ToString();
                 string post = dt.Rows[0][0].ToString();
                 double receiptAmount = double.Parse(temp["receiptAmount"].ToString());
                 double interval_time = Convert.ToDateTime(endTm).Subtract(Convert.ToDateTime(startTm)).Days + 1;    ///// 差旅费算头算尾
