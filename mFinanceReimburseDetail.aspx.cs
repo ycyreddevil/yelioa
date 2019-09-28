@@ -955,9 +955,9 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
     private string getReSubmitData()
     {
         string batchNo = Request.Form["batchNo"];
-
-        string sql = string.Format("select feeType,receiptType,receiptCode,receiptNum,receiptDate,activityDate,activityEndDate,receiptAmount,receiptPerson,relativePerson," +
-            "receiptTax,receiptPlace,receiptDesc,receiptAttachment,sellerRegisterNum from yl_reimburse_detail where batchNo = '{0}'", batchNo);
+        
+        string sql = string.Format("select relativePerson,receiptAttachment,feeType,receiptDate,receiptCode,receiptAmount,receiptTax,receiptPlace," +
+            "receiptNum,receiptPerson,activityDate,activityEndDate,sellerRegisterNum,receiptType from yl_reimburse_detail where batchNo = '{0}'", batchNo);
 
         DataTable dt = SqlHelper.Find(sql).Tables[0];
 
