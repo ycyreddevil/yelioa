@@ -130,7 +130,7 @@ public class ReceiptValidate
         }
         catch (Exception e)
         {
-            throw e;
+            
         }
         finally
         {
@@ -140,7 +140,7 @@ public class ReceiptValidate
         string user = "yuyaoyi";
         string psw = NetRecognizePic.MD5String("y123456");
         string lpSoftId = "96001";
-        string lpCodeType = "8001";
+        string lpCodeType = "1902";
 
         string str = NetRecognizePic.CJY_RecognizeBytes(bytes, bytesConter, user, psw, lpSoftId, lpCodeType, "0", "0", "");
         string strerr = GetTextByKey(str, "err_str");

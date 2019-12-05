@@ -44,7 +44,7 @@
             <option value="3">全部</option>
         </select>
         
-        <a class="easyui-linkbutton" href="javascript:void(0)" data-options="iconCls:'icon-search'," onclick="dg_search();">查询</a>&nbsp; <br>      
+        <a class="easyui-linkbutton" href="javascript:void(0)" data-options="iconCls:'icon-search'," onclick="dg_search();">查询</a>&nbsp;
         <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-edit'" onclick="ExportFile();">导出Excel</a>
         <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-edit'" onclick="updateActualFee();">实发数量复审</a>
          <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-edit'" onclick="reject();">拒绝</a>
@@ -75,7 +75,7 @@
     })
 
     function dg_search() {
-        initDatagrid();
+        dg_load();
     }
 
     function updateActualFee() {
@@ -192,16 +192,43 @@
         ExportToExcel('货需申请单据信息.xlsx','货需申请单据信息','dg');
        
     }
-   
-   
 
-    var initDatagrid = function () {
+
+    function dg_load(){
         var starttm = $("#dateFrom").datebox('getValue') == "" ? "" : $("#dateFrom").datebox('getValue') + " 00:00:00";
         var endtm = $("#dateTo").datebox('getValue') == "" ? "" : $("#dateTo").datebox('getValue') + " 23:59:59";
         var apply_name = $("#applyName").textbox('getValue');
         var hospital = $("#hospital").textbox('getValue');
         var product = $("#product").textbox('getValue');
         var isChecked = $('#isChecked').combobox('getValue');
+        parent.Loading(true);
+        $.post( 'OperationDemandManage.aspx',
+             {
+                action: 'getData',
+                starttm: starttm,
+                endtm: endtm,
+                apply_name: apply_name,
+                hospital: hospital,
+                product: product,
+                isChecked: isChecked
+            }, function (res) {
+                 var data = JSON.parse(res);
+                 parent.Loading(false);
+                 if (data.ErrCode == 0) {
+                     var document = JSON.parse(data.Document);
+                     $('#dg').datagrid('loadData',document);
+                 }
+                 else  {
+                      $.messager.alert('提示', data.ErrMsg, 'info');
+                 }
+            })
+    }
+   
+
+   
+
+    var initDatagrid = function () {
+        
         $('#dg').datagrid({
             
             nowrap: false,
@@ -227,10 +254,6 @@
                    field: 'LMT', width: 20, align: 'center', title: '提交时间'                   
                 },
                 { field: 'UserName', width: 10, align: 'center', title: '提交人' },
-                {
-                    field: 'department', width: 20, align: 'center', title: '部门'
-                },
-                
                 { field: 'hospitalName', width: 20, align: 'center', title: '医院' },
                 { field: 'agentName', width: 15, align: 'center', title: '代理商名称' },
                 {
@@ -259,26 +282,9 @@
                
             ]],
             
-        })
-        $.post( 'OperationDemandManage.aspx',
-             {
-                action: 'getData',
-                starttm: starttm,
-                endtm: endtm,
-                apply_name: apply_name,
-                hospital: hospital,
-                product: product,
-                isChecked: isChecked
-            }, function (res) {
-                 var data = JSON.parse(res);
-                 if (data.ErrCode == 0) {
-                     var document = JSON.parse(data.Document);
-                     $('#dg').datagrid('loadData',document);
-                 }
-                 else  {
-                      $.messager.alert('提示', data.ErrMsg, 'info');
-                 }
-            })
+        });
+
+        
     }
 </script>
 </html>

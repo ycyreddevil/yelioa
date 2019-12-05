@@ -5,6 +5,7 @@ using System.Web;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 using System.Data;
+using Newtonsoft.Json.Linq;
 
 public partial class mMobileReimbursement : System.Web.UI.Page
 {
@@ -137,25 +138,35 @@ public partial class mMobileReimbursement : System.Web.UI.Page
             return JsonHelper.SerializeObject(msg);
         }
 
-       //// 若提交时间超过当月25号 则不允许审批
-       // DateTime submitTime = Convert.ToDateTime(dt.Rows[0]["apply_time"]);
-       // DateTime theTime = Convert.ToDateTime(DateTime.Now.Year + "-" + DateTime.Now.Month + "-25" + " 00:00:00");
+        //// 若提交时间超过当月25号 则不允许审批
+        // DateTime submitTime = Convert.ToDateTime(dt.Rows[0]["apply_time"]);
+        // DateTime theTime = Convert.ToDateTime(DateTime.Now.Year + "-" + DateTime.Now.Month + "-25" + " 00:00:00");
 
-       // if (submitTime > theTime)
-       // {
-       //     msg = "该单据超过25号提交，暂无法审批！";
-       //     return JsonHelper.SerializeObject(msg);
-       // }
+        // if (submitTime > theTime)
+        // {
+        //     msg = "该单据超过25号提交，暂无法审批！";
+        //     return JsonHelper.SerializeObject(msg);
+        // }
 
-       // if (ApprovalResult == "同意" && dt.Rows[0]["IsOverBudget"].ToString() != "1")
-       // {
-       //     msg = ReimbursementManage.IsOverBudget(dt.Rows[0]["fee_department"].ToString(), dt.Rows[0]["fee_detail"].ToString(), Convert.ToDouble(dt.Rows[0]["fee_amount"].ToString()));
+        //if (ApprovalResult == "同意" && dt.Rows[0]["IsOverBudget"].ToString() != "1")
+        //{
+        //    JObject j = ReimbursementManage.IsOverBudget(dt.Rows[0]["fee_department"].ToString(), dt.Rows[0]["fee_detail"].ToString(), Convert.ToDouble(dt.Rows[0]["fee_amount"].ToString()), DateTime.Now);
 
-       //     if (msg.Contains("预算余额不足"))
-       //     {
-       //         return JsonHelper.SerializeObject(msg);
-       //     }
-       // }
+        //    if (msg.Contains("预算余额不足"))
+        //    {
+        //        return JsonHelper.SerializeObject(msg);
+        //    }
+        //}
+        if (ApprovalResult == "同意" && dt.Rows[0]["isOverBudget"].ToString() != "1")
+        {
+            JObject res = ReimbursementManage.IsOverBudget(dt.Rows[0]["fee_department"].ToString(), dt.Rows[0]["fee_detail"].ToString(), Convert.ToDouble(dt.Rows[0]["fee_amount"].ToString())
+            , Convert.ToDateTime(dt.Rows[0]["apply_time"].ToString()));
+
+            if (res == null || Convert.ToDouble(res["budget"]) < Convert.ToDouble(res["hasApprove"]) + Convert.ToDouble(dt.Rows[0]["fee_amount"].ToString()))
+            {
+                return JsonHelper.SerializeObject("预算余额不足");
+            }
+        }
 
         msg = ApprovalFlowManage.ApproveDocument("yl_reimburse", docCode, userInfo, ApprovalResult, ApprovalOpinions,
              "http://yelioa.top/mMySubmittedReimburse.aspx?docCode=" + code, "http://yelioa.top/mMobileReimbursement.aspx?docCode=" + code, "http://yelioa.top/mMySubmittedReimburse.aspx?docCode=" + code, "UM0i5TXSIqQIOWk-DmUlfTqBqvZAfbZdGGDKiFZ-nRk", "yl_reimburse", "1000006");
@@ -166,6 +177,22 @@ public partial class mMobileReimbursement : System.Web.UI.Page
             MobileReimburseManage.clearApprovalProcess(docCode);
             // 更新审批时间
             MobileReimburseManage.updateApprovalTimeAndResultAndOpinion(docCode, ApprovalResult, ApprovalOpinions);
+
+            // 删除关联差旅申请
+            sql += string.Format("delete from wf_form_差旅申请 where reimburseCode = '{0}';", code);
+
+            // 删除关联借款单 并把借款单的金额还原
+            dt = SqlHelper.Find(string.Format("select * from yl_reimburse_loan where ReimburseCode = '{0}'", code)).Tables[0];
+
+            sql += string.Format("delete from yl_reimburse_loan where ReimburseCode = '{0}';", code);
+
+            foreach (DataRow dr in dt.Rows)
+            {
+                decimal amount = Decimal.Parse(dr["amount"].ToString());
+                string tempCode = dr["docCode"].ToString();
+
+                sql += string.Format("update wf_form_借款单 set remainAmount = remainAmount + {0} where docCode = '{1}';", amount, tempCode);
+            }
         }
         return JsonHelper.SerializeObject(msg);
     }

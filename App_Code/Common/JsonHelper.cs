@@ -243,6 +243,12 @@ public class JsonHelper
         return JsonHelper.SerializeObject(arrayList);
     }
 
+    public static ArrayList Json2ArrayList(string json)
+    {
+        JavaScriptSerializer jss = new JavaScriptSerializer();
+        return jss.Deserialize<ArrayList>(json);
+    }
+
     /// <summary>
     /// Json转DataTable
     /// </summary>
@@ -262,7 +268,7 @@ public class JsonHelper
                 {
                     foreach (string key in drow.Keys)
                     {
-                        dtb.Columns.Add(key, drow[key].GetType());
+                        dtb.Columns.Add(key);
                     }
                 }
 
@@ -270,7 +276,7 @@ public class JsonHelper
                 foreach (string key in drow.Keys)
                 {
 
-                    row[key] = drow[key];
+                    row[key] = drow[key].ToString();
                 }
                 dtb.Rows.Add(row);
             }

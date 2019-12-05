@@ -53,7 +53,7 @@
             <%--<a href="javascript:void(0)" class="easyui-linkbutton" iconcls="icon-leaveStock" onclick="OpenDialoge();">导出移动报销单据</a>--%>
                 <a class="easyui-linkbutton" href="javascript:void(0)" data-options="iconCls:'icon-search'," onclick="dg_search();">查询</a>&nbsp;
                 <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-leaveStock'" onclick="batchApproval();">审批</a>
-                <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-edit'" onclick="updateActualFee();">金额复审</a>
+                <%--<a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-edit'" onclick="updateActualFee();">金额复审</a>--%>
                 <a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-print'" onclick="exportExcel();">导出</a>
                 <%--<a href="javascript:void(0)" class="easyui-linkbutton" data-options="iconCls:'icon-import'" onclick="$('#dlg-budget-Import').dialog('open');">预算导入</a>--%>
                 <a class="easyui-linkbutton" href="javascript:void(0)" data-options="iconCls:'icon-import',closed:true"
@@ -103,20 +103,22 @@
 				    <input type="hidden" name="action" id="actFbx1" />
             </form>
         </div>
-        <div id="dlg-Detail" class="easyui-dialog" title="移动报销明细数据" style="width: 1000px; height: 600px"
+        <div id="dlg-Detail" class="easyui-dialog" title="移动报销明细数据" style="width: 1200px; height: 600px"
             data-options="iconCls:'icon-import',modal:true,closed:true">
             <table id="dgDetail" class="easyui-datagrid">
                 <thead data-options="frozen:true"></thead>
             </table>
         </div>
         <div id="bigImgDialog">
-            <img id="bigImg" src=""/>
+            <img id="bigImg" style="width:800px; height:600px" src=""/>
         </div>
     </body>
     <script>
         var codes = new Array();
         var names = new Array();
         var account_approval_results = new Array();
+        var sortName='code';
+        var sortOrder='asc';
 
         $(function () {
             var d = new Date();
@@ -469,7 +471,9 @@
                     fee_depart: fee_depart,
                     fee_detail: fee_detail,
                     status: status,
-                    account_status: account_status
+                    account_status: account_status,
+                    sortName:sortName,
+                    sortOrder:sortOrder
                 },
                 pagination: true,
                 pageSize: 100,
@@ -537,12 +541,9 @@
                     { field: 'project', width: 200, align: 'center', title: '项目编号' },
                     { field: 'fee_amount', width: 100, align: 'center', title: '费用金额' },
                     {
-                        field: 'remain_fee_amount', width: 100, align: 'center', title: '发票金额',
-                        formatter: function (data, all) {
-                            return parseFloat(all.fee_amount) - parseFloat(data)
-                        }
+                        field: 'receiptAmount', width: 100, align: 'center', title: '发票金额'
                     },
-                    { field: 'actual_fee_amount', width: 120, align: 'center', title: '实报金额' },
+                    { field: 'actual_fee_amount', width: 100, align: 'center', title: '实报金额' },
                     //{
                     //    field: 'status', width: 10, align: 'center', title: '审批状态',
                     //    //formatter: function (data) {
@@ -602,20 +603,52 @@
                             }
                         }
                     },
-                    { field: 'remark', width: 200, align: 'center', title: '备注' },
-                    { field: 'isOverBudget', width: 100, align: 'center', title: '预算外单据' },
                     {
-                        field: 'isPrepaid', width: 100, align: 'center', title: '是否核销数据'
+                        field: 'pay_amount', width: 120, align: 'center', title: '出纳付款金额'
+                    },
+                    { field: 'remark', width: 200, align: 'center', title: '备注' },
+                    {
+                        field: 'isOverBudget', width: 100, align: 'center', title: '预算外单据',
+                        formatter: function (value, row, index) {
+                            if (value !== null && value > 0) {
+                                return '<span style="color: #FFFFFF; background-color: #FF0000">是</span>';
+                            }
+                            else {
+                                return '<span style="color: #FFFFFF; background-color: #00CC00">否</span>';
+                            }
+                        }
                     },
                     {
-                        field: 'isHasReceipt', width: 100, align: 'center', title: '是否到票'
+                        field: 'isPrepaid', width: 100, align: 'center', title: '是否公司垫付', sortable: "true",
+                        formatter: function (value, row, index) {
+                            if (value !== null && value > 0) {
+                                return '<span style="color: #FFFFFF; background-color: #FF0000">是</span>';
+                            }
+                            else {
+                                return '<span style="color: #FFFFFF; background-color: #00CC00">否</span>';
+                            }
+                        }
+                    },
+                    {
+                        field: 'isHasReceipt', width: 100, align: 'center', title: '是否到票', sortable: "true",
+                        formatter: function (value, row, index) {
+                            if (value !== null && value > 0) {
+                                return '<span style="color: #FFFFFF; background-color: #00CC00">是</span>';
+                            }
+                            else {
+                                return '<span style="color: #FFFFFF; background-color: #FF0000">否</span>';
+                            }
+                        }
                     },
                 ]],
                 idField: "code",
-                sortName: 'date',
-                sortOrder: 'asc',
+                // sortName: 'date',
+                // sortOrder: 'asc',
                 onSortColumn: function (sort, order) {
                     //dg_Load("", sort, order);
+                    sortName=sort;
+                    sortOrder=order;
+                    dg_search();
                 },
                 onLoadSuccess: function (data) {
                     $('.showDetailCls').linkbutton({ text: '明细', plain: true, iconCls: 'icon-tip' });
@@ -675,10 +708,10 @@
         function showBigImage(src) {
             $('#bigImgDialog').dialog({
                 title: '预览',
-                width: 400,
-                height: 400,
+                width: 800,
+                height: 600,
                 resizable: true,
-                closed: false,
+                closed: true,
                 cache: false,
                 modal: true
             });

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Data;
+using System.Security.Cryptography;
 /// <summary>
 /// GenerateDocCode 的摘要说明
 /// </summary>
@@ -10,6 +11,37 @@ public class GenerateDocCode
         //
         // TODO: 在此处添加构造函数逻辑
         //
+    }
+
+    /// <summary>
+    /// 唯一订单号生成
+    /// </summary>
+    /// <returns></returns>
+    public static string generateRandomDocCode()
+    {
+        var strDateTimeNumber = DateTime.Now.ToString("yyyyMMddHHmmss");
+        var strRandomResult = NextRandom(1000, 1).ToString("0000");
+
+        return strDateTimeNumber + strRandomResult;
+    }
+
+    /// <summary>
+    /// 参考：msdn上的RNGCryptoServiceProvider例子
+    /// </summary>
+    /// <param name="numSeeds"></param>
+    /// <param name="length"></param>
+    /// <returns></returns>
+    private static int NextRandom(int numSeeds, int length)
+    {
+        byte[] randomNumber = new byte[length];
+        RNGCryptoServiceProvider rng = new RNGCryptoServiceProvider();
+        rng.GetBytes(randomNumber);
+        uint randomResult = 0x0;
+        for (int i = 0; i < length; i++)
+        {
+            randomResult |= ((uint)randomNumber[i] << ((length - 1 - i) * 8));
+        }
+        return (int)(randomResult % numSeeds) + 1;
     }
 
     public static String getDocCode()

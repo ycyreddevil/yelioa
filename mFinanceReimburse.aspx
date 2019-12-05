@@ -80,7 +80,7 @@
                     <input id="apply_time" type="date" name="date" style="width: 40%; float: right; border: 0px" />
                 </a>
             </li>
-            <li id="isHistoricalVerification">是否当月公对公已付款:
+            <li id="isHistoricalVerification">是否公司垫付:
                 <a style="text-align: right; width: 60%; float: right" href="javascript:void(0)">
                     <select id="isPrepaid">
                         <option value="0">否</option>
@@ -114,8 +114,8 @@
             <li>费用归属部门:<a id="fee_department" style="text-align: right; width: 60%; float: right" href="javascript:void(0)"
                 onclick="openit('费用归属部门')">请选择</a></li>
             <li>费用归属公司:
-                <a style="text-align: right; width: 50%; float: right" href="javascript:void(0)"><select id="fee_company" style="width:100%"><option value="江西业力科技集团有限公司">江西业力科技集团有限公司</option><option selected value="江西东森科技发展有限公司">江西东森科技发展有限公司</option>
-                <option value="江西业力医疗器械有限公司">江西业力医疗器械有限公司</option><option value="南昌市中申医疗器械有限公司">南昌市中申医疗器械有限公司</option><option value="南昌老康科技有限公司">南昌老康科技有限公司</option>
+                <a style="text-align: right; width: 50%; float: right" href="javascript:void(0)"><select id="fee_company" style="width:100%"><option selected value="江西东森科技发展有限公司">江西东森科技发展有限公司</option>
+                <option value="江西业力医疗器械有限公司">江西业力医疗器械有限公司</option><option value="南昌市中申医疗器械有限公司">南昌市中申医疗器械有限公司</option><option value="江西业力科技集团有限公司">江西业力科技集团有限公司</option><option value="南昌老康科技有限公司">南昌老康科技有限公司</option>
                 <option value="天津吉诺泰普生物科技有限公司">天津吉诺泰普生物科技有限公司</option><option value="南昌业力医学检验实验室有限公司">南昌业力医学检验实验室有限公司</option><option value="九江傲沐科技发展有限公司">九江傲沐科技发展有限公司</option>
                 <option value="上海恩焯企业管理咨询中心">上海恩焯企业管理咨询中心</option><option value="上海会帆企业管理咨询中心">上海会帆企业管理咨询中心</option>
                  </select></a></li>
@@ -133,8 +133,9 @@
                         style="width: 40%; float: right; border: 0px" />
                 </a>
             </li>
-           <%-- <li id="reimburse_detail" style="display:block">报销明细:<a style="text-align: right; width: 70%; float: right;" href="javascript:void(0)"
-                onclick=" $.mobile.go('#p5');">请选择</a></li>--%>
+            <%--<li id="loanLi"  style="display: block">勾选已提交的借款单:<a id="loan"
+                style="text-align: right; width: 70%; float: right" href="javascript:void(0)"
+                onclick="openit('借款单')">请选择</a></li>--%>
             <li>金额:
                 <a style="text-align:right;width:80%;float:right" href="javascript:void(0)">
                     <input id="fee_amount" data-options="min:0,precision:2" class="easyui-numberbox" name="fee_amount"
@@ -325,8 +326,10 @@
         $("#isPrepaid").change(function () {
             if ($("#isPrepaid").val() == '1') {
                 $("#isHasReceiptLi").css('display', 'block')
+                $('#loanLi').css('display', 'none')
             } else {
                 $("#isHasReceiptLi").css('display', 'none')
+                $('#loanLi').css('display', 'block')
             }
         })
 
@@ -368,7 +371,7 @@
                     $.each(data, function (i, val) {
                         if (val.value.indexOf("营销中心/销售部") != -1) {
                             isSalesDepartment = true
-                            $("#isHistoricalVerification").css("display", "none");
+                            //$("#isHistoricalVerification").css("display", "none");
                             $("#isHasReceiptLi").css("display", "none");
                             return false;
                         }
@@ -479,6 +482,8 @@
                 url = "findProjectCode";
             } else if (target == "差旅申请") {
                 url = "findTravelApply";
+            } else if (target == "借款单") {
+                url = "findLoan";
             } else {
                 url = "findInformer";
             }
@@ -726,6 +731,15 @@
                                 valueField: 'value',
                             })
                         }
+                        else if (act === 'findLoan') {
+                            $("#confirmInformer").attr("onclick", "confirmLoan()")
+                            $("#detailList").empty();
+                            $('#dl').datalist({
+                                data: msg,
+                                textField: 'target',
+                                valueField: 'value',
+                            })
+                        }
                         else {
                             $("#dl").datalist('loadData', { total: 0, rows: [] })
                             if (msg == "" || msg == null) {
@@ -805,7 +819,7 @@
             }
 
             ///费用明细和产品网点关联 
-            if (feeDetail.indexOf("VIP维护费") > -1 ||
+            if (feeDetail.indexOf("VIP维护") > -1 ||
                 (feeDetail.indexOf("推广活动开发费") > -1 && department.indexOf("销售部") > -1) ||
                 feeDetail.indexOf("市场调节基金") > -1 || feeDetail.indexOf("推广活动其他") > -1 ||
                 (feeDetail.indexOf("推广活动市场费") > -1 && department.indexOf("销售部") > -1) || feeDetail.indexOf("销售折让") > -1) {
@@ -909,7 +923,8 @@
                     isHasReceipt: $("#isHasReceipt").val(),
                     reimburseDetail: JSON.stringify(reimburseDetail),
                     fee_company: feeCompany,
-                    travelCode: $("#travelApply").html()
+                    travelCode: $("#travelApply").html(),
+                    loanCode: $("#loan").html()
                 },
                 type: 'post',
                 dataType: 'text',
@@ -1025,6 +1040,16 @@
                 travelApplyCode += v.value + ','
             })
             $("#travelApply").html(travelApplyCode)
+            $.mobile.back();
+        }
+
+        var confirmLoan = function () {
+            var loans = $("#dl").datalist('getSelections')
+            var loanCode = ''
+            loans.forEach((v, i) => {
+                loanCode += v.value + ','
+            })
+            $("#loan").html(loanCode)
             $.mobile.back();
         }
 

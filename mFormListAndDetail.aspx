@@ -45,7 +45,7 @@
         <div class="weui-dialog">
             <div class="weui-dialog__bd" id="capion4"></div>
             <div class="weui-dialog__ft">
-                <a href="javascript:;" class="weui-dialog__btn weui-dialog__btn_primary" onclick="$('#Dialog4').fadeOut(200);GetData();GetList('toBeApprovedByMe')">确定</a>
+                <a href="javascript:;" class="weui-dialog__btn weui-dialog__btn_primary" onclick="$('#Dialog4').fadeOut(200);GetData();$.mobile.go('#p1');">确定</a>
             </div>
         </div>
     </div>
@@ -138,7 +138,7 @@
                 <a href="javascript:void(0)" class="easyui-linkbutton m-back" plain="true" outline="true" style="width: 50px" onclick=" $.mobile.go('#p2');">返回</a>
             </div>
             <div class="m-right">
-                <a href="javascript:void(0)" class="easyui-linkbutton" plain="true" outline="true" style="width: 50px" onclick="window.print()">打印</a>
+                <a href="javascript:void(0)" class="easyui-linkbutton" plain="true" outline="true" style="width: 50px" onclick="downloadExcel()">打印</a>
             </div>
         </header>
 
@@ -161,7 +161,7 @@
                         <div class="weui-cell">
                             <div class="weui-cell__bd">
                                 <textarea id="opinion" class="weui-textarea" placeholder="请输入意见/原因" rows="4"></textarea>
-                            </div
+                            </div>
                              
                         </div>
                         
@@ -525,7 +525,7 @@
                         }
 
                         if (type == "submitedByMe" && maxLevel > document[0].Level) {
-                            html = '<a href="javascript:;" class="weui-btn weui-btn_warn" onclick="$(\'#Dialog\').fadeIn(200);">撤    销</a>';
+                            html = '<a href="javascript:;" class="weui-btn weui-btn_warn" onclick="showReturnDialog()">撤    销</a>';
                         }
 
                         if (type == "submitedByMe" && document[0].Status == '已拒绝') {
@@ -549,8 +549,26 @@
                 })
         }
 
+        function showReturnDialog() {
+            $('#Dialog').fadeIn(200)
+        }
+
         function Submit() {
             location.href = "mFormDetail.aspx?formName=" + formName + "&docId=" + docID + "&id=" + ID;
+        }
+
+        function downloadExcel() {
+            $.post(url, { act: "downloadExcel", formName: formName, docId: docID },
+                function (res) {
+                    $('#loadingToast').fadeOut(100);
+                    response = $.parseJSON(res);
+                    if (response.ErrCode == 0) {
+                        window.location.href = 'tempExportFile/' + response.FileCode1 + '.xls';
+                    } else {
+                        $.messager.alert('提示', res, 'info');
+                    }
+                }
+            )
         }
 
         function SureBack() {

@@ -101,6 +101,10 @@ public partial class mFinanceReimburse : System.Web.UI.Page
             {
                 Response.Write(findTravelApply());
             }
+            else if (action == "findLoan")
+            {
+                Response.Write(findLoan());
+            }
             else if (action == "findTravelApplyAmount")
             {
                 Response.Write(findTravelApplyAmount());
@@ -227,6 +231,7 @@ public partial class mFinanceReimburse : System.Web.UI.Page
         string isHasReceipt = Request.Form["isHasReceipt"];
         string reimburseDetail = Request.Form["reimburseDetail"];
         string travelCode = Request.Form["travelCode"];
+        string loanCode = Request.Form["loanCode"];
 
         List<string> informerList = JsonHelper.DeserializeJsonToList<string>(informer);
         List<JObject> approverDataList = JsonHelper.DeserializeJsonToList<JObject>(approverData);
@@ -236,19 +241,15 @@ public partial class mFinanceReimburse : System.Web.UI.Page
         string msg = "";
         JObject res = ReimbursementManage.IsOverBudget(fee_department, fee_detail,Convert.ToDouble(fee_amount)
             ,Convert.ToDateTime(apply_time));
-        if (res==null||Convert.ToDouble(res["budget"])>=Convert.ToDouble(res["hasApprove"])+ Convert.ToDouble(fee_amount) || isOverBudget == "1" || isPrepaid == "1")
+        if (res==null||Convert.ToDouble(res["budget"])>=Convert.ToDouble(res["hasApprove"])+ Convert.ToDouble(fee_amount) || isOverBudget == "1")
         {
-            msg= MobileReimburseManage.insertMobileReimburse(apply_time, product, branch, fee_department, fee_detail, fee_amount,
-            file, remark, user, approver, department, informerList, approverDataList, uploadFileUrlsList, docCode, project,isOverBudget,isPrepaid,isHasReceipt, reimburseDetailList, fee_company);           
+            msg = MobileReimburseManage.insertMobileReimburse(apply_time, product, branch, fee_department, fee_detail, fee_amount,
+            file, remark, user, approver, department, informerList, approverDataList, uploadFileUrlsList, docCode, project,isOverBudget,
+            isPrepaid,isHasReceipt, reimburseDetailList, fee_company, travelCode, loanCode);           
         }
         else
         {
             string code = GenerateDocCode.getReimburseCode();
-
-            // 差旅申请表关联移动报销编号
-            string sql = string.Format("update wf_form_差旅申请 set reimburseCode = '{0}' where '{1}' like concat('%', docCode, '%')", code, travelCode);
-
-            SqlHelper.Exce(sql);
 
             if (department == null || "".Equals(department))
             {
@@ -525,5 +526,16 @@ public partial class mFinanceReimburse : System.Web.UI.Page
         };
 
         return result.ToString();
+    }
+
+    public string findLoan()
+    {
+        UserInfo user = (UserInfo)Session["user"];
+
+        string sql = string.Format("select docCode value, concat('借款用途:',借款用途,', ￥',remainAmount,'元') target from wf_form_借款单 where userId = '{0}' and status = '已审批' and remainAmount > 0", user.userId.ToString());
+
+        DataTable dt = SqlHelper.Find(sql).Tables[0];
+
+        return JsonHelper.DataTable2Json(dt);
     }
 }

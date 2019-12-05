@@ -111,7 +111,7 @@ public partial class FinancialReimburseManage : System.Web.UI.Page
 
                 dict.Add("code", row[0].ToString());
                 dict.Add("actual_fee_amount", row[1].ToString());
-                dict.Add("name", row[2].ToString());
+                //dict.Add("name", row[2].ToString());
                 dict.Add("approver", user.userName.ToString());
 
                 list.Add(dict);
@@ -133,50 +133,60 @@ public partial class FinancialReimburseManage : System.Web.UI.Page
         string fee_detail = Request.Form["fee_detail"];
         string account_status = Request.Form["account_status"];
         string status = Request.Form["status"];
+        string sortName = Request.Form["sortName"];
+        string sortOrder = Request.Form["sortOrder"];
 
-        DataTable dt = ReimbursementManage.findByCond(applystarttm, applyendtm,starttm, endtm, apply_name, depart, fee_depart, fee_detail, account_status, status);
+        DataTable dt = ReimbursementManage.findByCond(applystarttm, applyendtm,starttm, endtm, apply_name, depart, fee_depart, fee_detail, account_status, status
+            ,sortName,sortOrder);
 
         if (dt == null)
             return null;
 
+        //DataTable res = dt.Clone();
+        //res.Columns["isPrepaid"].DataType = typeof(string);
+        //res.Columns["isHasReceipt"].DataType = typeof(string);
+
         DataTable res = dt.Clone();
-        res.Columns["isPrepaid"].DataType = typeof(string);
-        res.Columns["isHasReceipt"].DataType = typeof(string);
+
         for (int i=0;i<dt.Rows.Count;i++)
         {
             DataRow row = res.NewRow();
-            foreach(DataColumn c in dt.Columns)
-            {
-                if(c.ColumnName != "isPrepaid" && c.ColumnName != "isHasReceipt")
-                    row[c.ColumnName] = dt.Rows[i][c.ColumnName];
-            }
-            int val = 0;
-            if (dt.Rows[i]["isPrepaid"] == DBNull.Value)
-                row["isPrepaid"] = "否"; 
-            else
-            {
-                val = Convert.ToInt32(dt.Rows[i]["isPrepaid"]);
-                if (val == 1)
-                {
-                    row["isPrepaid"] = "是";
-                }
-                else
-                    row["isPrepaid"] = "否";
-            }
-            if (dt.Rows[i]["isHasReceipt"] == DBNull.Value)
-                row["isHasReceipt"] = "是";
-            else
-            {
-                val = Convert.ToInt32(dt.Rows[i]["isHasReceipt"]);
-                if (val == 1)
-                {
-                    row["isHasReceipt"] = "是";
-                }
-                else
-                    row["isHasReceipt"] = "否";
-            }
+
+            row.ItemArray = dt.Rows[i].ItemArray;
+            //foreach(DataColumn c in dt.Columns)
+            //{
+            //    if(c.ColumnName != "isPrepaid" && c.ColumnName != "isHasReceipt")
+            //        row[c.ColumnName] = dt.Rows[i][c.ColumnName];
+            //}
+            //int val = 0;
+            //if (dt.Rows[i]["isPrepaid"] == DBNull.Value)
+            //    row["isPrepaid"] = "否"; 
+            //else
+            //{
+            //    val = Convert.ToInt32(dt.Rows[i]["isPrepaid"]);
+            //    if (val == 1)
+            //    {
+            //        row["isPrepaid"] = "是";
+            //    }
+            //    else
+            //        row["isPrepaid"] = "否";
+            //}
+            //if (dt.Rows[i]["isHasReceipt"] == DBNull.Value)
+            //    row["isHasReceipt"] = "是";
+            //else
+            //{
+            //    val = Convert.ToInt32(dt.Rows[i]["isHasReceipt"]);
+            //    if (val == 1)
+            //    {
+            //        row["isHasReceipt"] = "是";
+            //    }
+            //    else
+            //        row["isHasReceipt"] = "否";
+            //}
 
             row["remark"] = SqlHelper.DesDecrypt(dt.Rows[i]["remark"].ToString());
+
+            //row["receiptAmount"] = SqlHelper.Find(string.Format("select sum(amount) from yl_reimburse_detail_relevance where reimburseCode = '{0}'", dt.Rows[i]["code"])).Tables[0].Rows[0][0].ToString();
 
             res.Rows.Add(row);
         }
@@ -327,7 +337,7 @@ public partial class FinancialReimburseManage : System.Web.UI.Page
     {
         string code = Request.Form["code"];
 
-        DataTable dt = SqlHelper.Find(string.Format("select * from yl_reimburse_detail where code like '%{0}%'", code)).Tables[0];
+        DataTable dt = SqlHelper.Find(string.Format("select * from yl_reimburse_detail where code like '%{0}%' and status = '同意'", code)).Tables[0];
 
         return JsonHelper.DataTable2Json(dt);
     }

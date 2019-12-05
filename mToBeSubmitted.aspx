@@ -388,7 +388,7 @@
                 html += '<span class="weui-badge" style= "background-color:slategray">财务未审批</span>';
             }
 
-            if (tempData[i].actual_fee_amount == "") {
+            if (tempData[i].pay_amount == 0) {
                 html += '<span class="weui-badge" style= "background-color:slategray">未付款</span>';
             } else {
                 html += '<span class="weui-badge" style= "background-color:limegreen">已付款</span>';

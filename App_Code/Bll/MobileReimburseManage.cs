@@ -183,7 +183,7 @@ public class MobileReimburseManage
             {
                 resJObject = new JObject
                 {
-                    { "name", "熊玲玲" },
+                    { "name", "陈瑶" },
                     { "userId", "100000406" }
                 };
                 jobjectList.Add(resJObject);
@@ -575,10 +575,13 @@ public class MobileReimburseManage
             }
 
             // 向上审批直到审批人中包含 程丹凤
-            while (!leaders.Contains("程丹凤"))
+            if (userInfo.userName != "程丹凤")
             {
-                leaders = getApprover(ref list, self_department_id, userInfo, leaders) + ",";
-                self_department_id = Int32.Parse(MobileReimburseSrv.findParentIdById(self_department_id).Tables[0].Rows[0][0].ToString());
+                while (!leaders.Contains("程丹凤"))
+                {
+                    leaders = getApprover(ref list, self_department_id, userInfo, leaders) + ",";
+                    self_department_id = Int32.Parse(MobileReimburseSrv.findParentIdById(self_department_id).Tables[0].Rows[0][0].ToString());
+                }
             }
 
             resJObject = new JObject();
@@ -1122,7 +1125,8 @@ public class MobileReimburseManage
 
     public static string insertMobileReimburse(string apply_time, string product, string branch, string fee_department, string fee_detail, string fee_amount,
         string file, string remark, UserInfo userInfo, string approver, string departmentName, List<string> informerList, List<JObject> approverDataList, 
-        List<string> uploadFileUrlsList, string docCode, string project,string isOverBudget, string isPrepaid, string isHasReceipt, List<JObject> reimburseDetailList, string fee_company)
+        List<string> uploadFileUrlsList, string docCode, string project,string isOverBudget, string isPrepaid, string isHasReceipt, 
+        List<JObject> reimburseDetailList, string fee_company, string travelCode, string loanCode)
     {
         string code = GenerateDocCode.getReimburseCode();
         if (departmentName == null || "".Equals(departmentName))
@@ -1138,6 +1142,56 @@ public class MobileReimburseManage
         else if (reportDepartmentName == "南昌中申医疗" && (fee_detail.Contains("LK") || fee_detail.Contains("中申")))
         {
             reportDepartmentName = "南昌老康科技";
+        }
+
+        string sql = string.Empty;
+
+        // 差旅申请表关联移动报销编号
+        if (!string.IsNullOrEmpty(travelCode))
+        {
+            sql += string.Format("update wf_form_差旅申请 set reimburseCode = '{0}' where docCode = '{1}'", code, travelCode);
+        }
+
+        // 借款单和移动报销关联
+        if (!string.IsNullOrEmpty(loanCode))
+        {
+            string[] loanCodes = loanCode.Split(',');
+
+            List<JObject> list = new List<JObject>();
+            double fee_amount_other = double.Parse(fee_amount);
+            foreach (string temp in loanCodes)
+            {
+                if (string.IsNullOrEmpty(temp) || "请选择".Equals(temp) || fee_amount_other == 0)
+                    continue;
+
+                JObject loanJObject = new JObject
+                {
+                    { "reimburseCode", code },
+                    { "docCode", temp },
+                    { "createTime", DateTime.Now},
+                };
+
+                // 修改借款单可用额度
+                double tempAmount = double.Parse(SqlHelper.Find("select 借款金额 from wf_form_借款单 where docCode = '" + temp + "'").Tables[0].Rows[0][0].ToString());
+
+                if (fee_amount_other >= tempAmount)
+                {
+                    loanJObject.Add("amount", tempAmount);
+                    fee_amount_other -= tempAmount;
+                    sql += string.Format("update wf_form_借款单 set remainAmount = 0 where docCode = '{0}';", temp);
+                }
+                else
+                {
+                    loanJObject.Add("amount", fee_amount_other);
+                    sql += string.Format("update wf_form_借款单 set remainAmount = {1} where docCode = '{0}';", temp, tempAmount - fee_amount_other);
+                    fee_amount_other = 0;
+                }
+
+                list.Add(loanJObject);
+            }
+
+            sql += SqlHelper.GetInsertString(list, "yl_reimburse_loan");
+            SqlHelper.Exce(sql);
         }
 
         string jObjectStr = "";
@@ -1360,6 +1414,80 @@ public class MobileReimburseManage
             res.Add("ErrCode", 0);
             res.Add("ErrMsg", "操作成功");
             res.Add("statistics", JsonHelper.DataTableToJsonForEasyUiDataGridLoadDataMethod(dt1));
+            res.Add("detail", JsonHelper.DataTableToJsonForEasyUiDataGridLoadDataMethod(dt2));
+        }
+        return res.ToString();
+    }
+
+    /// <summary>
+    /// 按照不同的方式进行报销审批记录的统计
+    /// </summary>
+    /// <param name="userId">人员Name</param>
+    /// <param name="year">年份</param>
+    /// <param name="month">月份</param>
+    /// <param name="type">统计方式：费用归属部门，费用明细</param>
+    /// <returns>统计结果</returns>
+    public static string accountSelfStatistics(string userName, int year, int month, string type)
+    {
+        JObject res = new JObject();
+        if (string.IsNullOrEmpty(userName) || string.IsNullOrEmpty(type))
+        {
+            res.Add("ErrCode", 1);
+            res.Add("ErrMsg", "参数缺少");
+            return res.ToString();
+        }
+        if (type.Equals("department"))
+        {
+            type = "fee_department";
+        }
+        else if (type.Equals("detail"))
+        {
+            type = "fee_detail";
+        }
+        string msg = "";
+        DataSet ds = MobileReimburseSrv.accountSelfStatistics(userName, year, month, type, ref msg);
+        if (ds == null)
+        {
+            res.Add("ErrCode", 2);
+            res.Add("ErrMsg", msg);
+        }
+        else if (ds.Tables[0].Rows.Count == 0)
+        {
+            res.Add("ErrCode", 3);
+            res.Add("ErrMsg", "未找到审批记录");
+        }
+        else
+        {
+            var dt1 = ds.Tables[0];
+            var dt2 = ds.Tables[1];
+            foreach (DataRow dr in dt2.Rows)
+            {
+                dr["remark"] = SqlHelper.DesDecrypt(dr["remark"].ToString());
+            }
+            res.Add("ErrCode", 0);
+            res.Add("ErrMsg", "操作成功");
+
+            dt1.Columns.Add("loanAmount");
+
+            DataTable tempDt = dt1.Clone();
+
+            foreach (DataRow dr in dt1.Rows)
+            {
+                DataTable amountDt = SqlHelper.Find(string.Format("select ifnull(sum(amount),0) from yl_reimburse_loan where '{0}' like concat('%', reimburseCode, '%')", dr["totalCode"].ToString())).Tables[0];
+
+                if (amountDt == null || amountDt.Rows.Count == 0)
+                    continue;
+
+                decimal amount = decimal.Parse(amountDt.Rows[0][0].ToString());
+
+                DataRow tempDr = tempDt.NewRow();
+                tempDr.ItemArray = dr.ItemArray;
+                tempDr["loanAmount"] = amount;
+
+                tempDt.Rows.Add(tempDr);
+            }
+
+            res.Add("statistics", JsonHelper.DataTableToJsonForEasyUiDataGridLoadDataMethod(tempDt));
             res.Add("detail", JsonHelper.DataTableToJsonForEasyUiDataGridLoadDataMethod(dt2));
         }
         return res.ToString();

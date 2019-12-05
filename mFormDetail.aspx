@@ -1019,6 +1019,16 @@
             var fileData = { name: vue.fileName, value: JSON.stringify(uploadNotImage) };
             formData.push(fileData);
         }
+
+        if (vue.formTitle === '借款单') {
+            let a = ''
+            formData.forEach((v, i) => {
+                if (v.name === '借款金额')
+                    a = v.value
+            })
+            const remainAmount = { name: 'remainAmount', value: a }
+            formData.push(remainAmount);
+        }
         
         if (vue.formTitle === '差旅申请') {
             let a = ''

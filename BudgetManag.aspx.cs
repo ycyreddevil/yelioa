@@ -25,7 +25,11 @@ public partial class BudgetManag : System.Web.UI.Page
             }
             else if (action == "getBudget")
             {
-                getBudget();
+                Response.Write(getBudget());
+            }
+            else if (action == "downLoadBudget")
+            {
+                Response.Write(downLoadBudget());
             }
             else if (action == "initDepartmentTree")
             {
@@ -181,13 +185,21 @@ public partial class BudgetManag : System.Web.UI.Page
         Response.Write(res);
     }
 
-    private void getBudget()
+    private string downLoadBudget()
     {
-        string departmentId = Request.Form["departmentId"];
+        string departmentId = "1";
+        int lastMonth, lastYear, nextMonth, nextYear;
+        string dateString =  Request.Form["date"]+"-1";
+        JObject res = new JObject();
 
-        int lastMonth, lastYear,nextMonth, nextYear;
-        DateTime now = DateTime.Now;
-        if(now.Month==1)
+        DateTime now = new DateTime();
+        if(!DateTime.TryParse(dateString, out now))
+        {
+            res.Add("ErrCode", 3);
+            res.Add("ErrMsg", "输入查询月份有误！请重新输入！");
+            return res.ToString();
+        }
+        if (now.Month == 1)
         {
             lastMonth = 12;
             lastYear = now.Year - 1;
@@ -201,10 +213,181 @@ public partial class BudgetManag : System.Web.UI.Page
             nextMonth = 1;
             nextYear = now.Year + 1;
         }
-        else 
+        else
         {
             lastMonth = now.Month - 1;
-            lastYear =now.Year;
+            lastYear = now.Year;
+            nextMonth = now.Month + 1;
+            nextYear = now.Year;
+        }
+
+        
+        //本月预算
+        string sql = string.Format("SELECT a.*,d.name as department FROM `import_budget` a LEFT JOIN department d on a.DepartmentId=d.Id " +
+            "where  a.CreateTime between '{1}-{2}-1 00:00:00 ' and '{3}-{4}-1 00:00:00' order by a.Id;", departmentId, now.Year, now.Month, nextYear, nextMonth);
+        //string sql = string.Format("SELECT a.*, ifnull(sum(yr.fee_amount), 0) UsedAmount FROM `import_budget` a LEFT JOIN department d on a.DepartmentId=d.Id " +
+        //    "left join yl_reimburse yr on yr.fee_department like CONCAT('%',d.`name`,'%') and a.FeeDetail = yr.fee_detail and yr.approval_time BETWEEN '{1}-{2}-26 00:00:00 '" +
+        //    "AND '{3}-{4}-31 23:59:59' and yr.status = '已审批' where d.Id={0} and " +
+        //    "a.CreateTime between '{1}-{2}-1 00:00:00 ' and '{3}-{4}-1 00:00:00' group by a.FeeDetail order by a.Id;", departmentId, lastYear, lastMonth, now.Year, now.Month);
+        //上月预算
+        sql += string.Format("SELECT a.*,0 as UsedAmount FROM `import_budget` a LEFT JOIN department d on a.DepartmentId=d.Id " +
+            "where d.Id={0} and a.CreateTime between '{1}-{2}-1 00:00:00 ' and '{3}-{4}-1 00:00:00' order by a.Id;", departmentId, lastYear, lastMonth, now.Year, now.Month);
+        sql += "select max(Id) from import_budget;";
+        sql += string.Format("select yr.fee_amount,yr.fee_detail,yr.fee_department from yl_reimburse yr  " +
+            " where yr.approval_time BETWEEN '{1}-{2}-1 00:00:00 ' and '{3}-{4}-1 00:00:00' and yr.status = '已审批' and (yr.account_result is null or yr.account_result = '同意')"
+            , departmentId, now.Year, now.Month, nextYear, nextMonth);
+        string msg = "";
+        DataSet ds = SqlHelper.Find(sql,ref msg);
+        if (ds != null)
+        {
+            int count = Convert.ToInt32(ds.Tables[2].Rows[0][0]) + 1;
+            DataTable dt = new DataTable();
+            if (ds.Tables[0].Rows.Count == 0)//本月未提交预算，费用明细从上月取，预算全部赋值0
+            {
+                res.Add("ErrCode", 2);
+                res.Add("ErrMsg", "该月未查询到预算！");
+            }
+            else//本月已提交预算，预算和费用明细从本月取数据
+            {
+                dt = ds.Tables[0];
+                dt.Columns.Add("UsedAmount");
+                for (int i = 0; i < dt.Rows.Count; i++)
+                {
+                    DataRow row = dt.Rows[i];
+                    string ParentName = "";
+                    string condition = "";
+                    if (Convert.ToInt32(row["ParentId"]) == -1)
+                    {
+                        condition = string.Format("fee_detail like '%{0}%' and fee_department like '%{1}%'", row["FeeDetail"].ToString(), row["department"].ToString());
+                    }
+                    else
+                    {
+                        DataRow[] rowss = dt.Select("Id=" + row["ParentId"].ToString());
+                        if (rowss.Length > 0)
+                        {
+                            ParentName = rowss[0]["FeeDetail"].ToString();
+                            condition = string.Format("fee_detail like '%{0}%' and fee_detail like '%{2}%' and fee_department like '%{1}%'"
+                                , row["FeeDetail"].ToString(), row["department"].ToString(), ParentName);
+                        }
+
+                    }
+                    double UsedAmount = 0;
+                    DataRow[] rows = ds.Tables[3].Select(condition);
+                    foreach(DataRow r in rows)
+                    {
+                        UsedAmount += Convert.ToDouble(r["fee_amount"]);
+                    }
+                    //for (int j = ds.Tables[3].Rows.Count - 1; j >= 0; j--)
+                    //{
+                    //    DataRow r = ds.Tables[3].Rows[j];
+                    //    string ImFeeDetail = r["fee_detail"].ToString();
+                    //    string YrFeeDetail = row["FeeDetail"].ToString();
+                    //    if (string.IsNullOrEmpty(ParentName))
+                    //    {
+                    //        if (ImFeeDetail.Contains(YrFeeDetail)&&row["department"].ToString().Equals(r["fee_department"].ToString()))
+                    //        {
+                    //            try
+                    //            {
+                    //                UsedAmount += Convert.ToDouble(r["fee_amount"]);
+                    //            }
+                    //            catch { }
+                    //            finally
+                    //            {
+                    //                //ds.Tables[3].Rows.RemoveAt(j);
+                    //            }
+                    //        }
+                    //    }
+                    //    else
+                    //    {
+                    //        if ((ImFeeDetail.Contains(YrFeeDetail)) && ImFeeDetail.Contains(ParentName) && row["department"].ToString().Equals(r["fee_department"].ToString()))
+                    //        {
+                    //            try
+                    //            {
+                    //                UsedAmount += Convert.ToDouble(r["fee_amount"]);
+                    //            }
+                    //            catch { }
+                    //            finally
+                    //            {
+                    //                //ds.Tables[3].Rows.RemoveAt(j);
+                    //            }
+                    //        }
+                    //    }
+
+                    //}
+                    dt.Rows[i]["UsedAmount"] = UsedAmount;
+                }
+                string path = Server.MapPath("~/tempExportFile");
+                string filecode = ValideCodeHelper.GetRandomCode(64);
+                string fileName = string.Format("{0}年{1}月预算使用情况表", now.Year, now.Month);
+                path = path + @"\" + filecode + ".xls";
+                BytesToFile(ExcelHelperV2_0.Export(dt, fileName, (new List<string>()).ToArray()).GetBuffer(), path);
+                res.Add("ErrCode", 0);
+                res.Add("fileName", fileName);
+                res.Add("fileCode", filecode);
+            }
+            //List<BudgetTreeNode> tree = new BudgetTreeNodeHelper(dt).GetTree();
+            //string json = JsonConvert.SerializeObject(tree);
+            //if(dt.Rows.Count == 0)
+            //{
+            //    res.Add("ErrCode", 2);
+            //    res.Add("ErrMsg", "该月未查询到预算！");
+            //}
+            //else
+            //{
+
+            //    string path = Server.MapPath("~/tempExportFile");
+            //    string filecode = ValideCodeHelper.GetRandomCode(64);
+            //    string fileName = string.Format("{0}年{1}月预算使用情况表", now.Year, now.Month);
+            //    path = path + @"\" + filecode + ".xls";
+            //    BytesToFile(ExcelHelperV2_0.Export(dt, fileName, (new List<string>()).ToArray()).GetBuffer(), path);
+            //    res.Add("ErrCode", 0);
+            //    res.Add("fileName", fileName);
+            //    res.Add("fileCode", filecode);
+            //}
+
+                       
+        }
+        else
+        {
+            res.Add("ErrCode", 1);
+            res.Add("ErrMsg", msg);
+        }
+        //Response.Write(res);
+        return res.ToString();
+    }
+
+    private void BytesToFile(byte[] bytes, string fileName)
+    {
+        // 把 byte[] 写入文件
+        FileStream fs = new FileStream(fileName, FileMode.Create);
+        BinaryWriter bw = new BinaryWriter(fs);
+        bw.Write(bytes);
+        bw.Close();
+        fs.Close();
+    }
+
+    private string getBudget(string departmentId)
+    {
+        int lastMonth, lastYear, nextMonth, nextYear;
+        DateTime now = DateTime.Now;
+        if (now.Month == 1)
+        {
+            lastMonth = 12;
+            lastYear = now.Year - 1;
+            nextMonth = now.Month + 1;
+            nextYear = now.Year;
+        }
+        else if (now.Month == 12)
+        {
+            lastMonth = now.Month - 1;
+            lastYear = now.Year;
+            nextMonth = 1;
+            nextYear = now.Year + 1;
+        }
+        else
+        {
+            lastMonth = now.Month - 1;
+            lastYear = now.Year;
             nextMonth = now.Month + 1;
             nextYear = now.Year;
         }
@@ -222,19 +405,19 @@ public partial class BudgetManag : System.Web.UI.Page
             "where d.Id={0} and a.CreateTime between '{1}-{2}-1 00:00:00 ' and '{3}-{4}-1 00:00:00' order by a.Id;", departmentId, lastYear, lastMonth, now.Year, now.Month);
         sql += "select max(Id) from import_budget;";
         sql += string.Format("select yr.fee_amount,yr.fee_detail from yl_reimburse yr left join department d on yr.fee_department like CONCAT('%',d.name,'%') " +
-            " where d.Id={0} and yr.approval_time BETWEEN '{1}-{2}-1 00:00:00 ' and '{3}-{4}-1 00:00:00' and yr.status = '已审批'"
+            " where d.Id={0} and yr.approval_time BETWEEN '{1}-{2}-1 00:00:00 ' and '{3}-{4}-1 00:00:00' and yr.status = '已审批' and (yr.account_result is null or yr.account_result = '同意')"
             , departmentId, now.Year, now.Month, nextYear, nextMonth);
         DataSet ds = SqlHelper.Find(sql);
-        if (ds!=null)
+        if (ds != null)
         {
-            int count =Convert.ToInt32(ds.Tables[2].Rows[0][0])+1;
+            int count = Convert.ToInt32(ds.Tables[2].Rows[0][0]) + 1;
             DataTable dt = new DataTable();
             res.Add("message", "success");
-            if(ds.Tables[0].Rows.Count==0)//本月未提交预算，费用明细从上月取，预算全部赋值0
+            if (ds.Tables[0].Rows.Count == 0)//本月未提交预算，费用明细从上月取，预算全部赋值0
             {
                 if (ds.Tables[1].Rows.Count == 0)
                 {
-                    ds.Tables[1].Rows.Add(count,departmentId, "费用明细" + count , 0, DateTime.Now, null);
+                    ds.Tables[1].Rows.Add(count, departmentId, "费用明细" + count, 0, DateTime.Now, null);
                 }
                 else
                 {
@@ -247,9 +430,9 @@ public partial class BudgetManag : System.Web.UI.Page
             }
             else//本月已提交预算，预算和费用明细从本月取数据
             {
-                dt=ds.Tables[0];
+                dt = ds.Tables[0];
                 dt.Columns.Add("UsedAmount");
-                for(int i=0;i<dt.Rows.Count;i++)
+                for (int i = 0; i < dt.Rows.Count; i++)
                 {
                     DataRow row = dt.Rows[i];
                     string ParentName = "";
@@ -262,7 +445,7 @@ public partial class BudgetManag : System.Web.UI.Page
                             ParentName = rows[0]["FeeDetail"].ToString();
                     }
                     double UsedAmount = 0;
-                    for(int j=ds.Tables[3].Rows.Count-1;j>=0;j--)
+                    for (int j = ds.Tables[3].Rows.Count - 1; j >= 0; j--)
                     {
                         DataRow r = ds.Tables[3].Rows[j];
                         string ImFeeDetail = r["fee_detail"].ToString();
@@ -283,7 +466,7 @@ public partial class BudgetManag : System.Web.UI.Page
                             }
                         }
                         else
-                        {                            
+                        {
                             if ((ImFeeDetail.Contains(YrFeeDetail)) && ImFeeDetail.Contains(ParentName))
                             {
                                 try
@@ -297,7 +480,7 @@ public partial class BudgetManag : System.Web.UI.Page
                                 }
                             }
                         }
-                        
+
                     }
                     dt.Rows[i]["UsedAmount"] = UsedAmount;
                 }
@@ -307,11 +490,18 @@ public partial class BudgetManag : System.Web.UI.Page
             res.Add("data", json);
             res.Add("count", count);//预算提交的Id最大值，作为费用明细Id
         }
-        else 
+        else
         {
             res.Add("message", "fail");
         }
-        Response.Write(res);
+        //Response.Write(res);
+        return res.ToString();
+    }
+
+    private string getBudget()
+    {
+        string departmentId = Request.Form["departmentId"];
+        return getBudget(departmentId);        
     }
 
     private void InitDepartmentTree()

@@ -96,6 +96,9 @@ public class ApprovalFlowSrv
         else if (table == "yl_reimburse")
             sql = string.Format("update yl_reimburse set Status='{0}',Level={1}  "
                 + "where id = {2}", state, level, docCode);
+        else if (table == "wages" || table == "outer_wages" || table == "tax")
+            sql = string.Format("update {0} set Status='{1}',Level={2}  "
+                + "where DocCode = {3}", table, state, level, docCode);
         else if (state == "未提交")
             sql = string.Format("update {0} set Editable = 0,State='{1}',Level={2},Editable=1  "
                 + "where DocCode = {3}", table, state, level, docCode);
@@ -121,14 +124,23 @@ public class ApprovalFlowSrv
         List<string> list = new List<string>();
         list.Add(string.Format("select * from approval_approver where DocumentTableName='{0}' "
             + "and DocCode='{1}' order by Level", table, docCode));
-      
-        list.Add(string.Format("select a.*,users.wechatUserId from approval_process  a LEFT JOIN users ON" +
-        " a.ApproverId=users.userId where a.DocumentTableName='{0}' and a.DocCode='{1}'"
-        + " order by a.Level asc", table, docCode));
+
+        if (table == "wages" || table == "outer_wages" || table == "tax")
+        {
+            list.Add(string.Format("select a.*,users.wechatUserId from approval_process  a LEFT JOIN users ON" +
+            " a.ApproverId=users.userId where a.DocumentTableName='{0}' and a.DocCode='0'"
+            + " order by a.Level asc", table));
+        }
+        else
+        {
+            list.Add(string.Format("select a.*,users.wechatUserId from approval_process  a LEFT JOIN users ON" +
+            " a.ApproverId=users.userId where a.DocumentTableName='{0}' and a.DocCode='{1}'"
+            + " order by a.Level asc", table, docCode));
+        }
         
         list.Add(string.Format("select * from approval_record where DocumentTableName='{0}' "
             + "and DocCode='{1}' order by Time asc", table, docCode));
-        if (table == "net_sales")
+        if (table == "net_sales" || table == "wages" || table == "outer_wages" || table == "tax")
         {
             list.Add(string.Format("select * from {0} where DocCode='{1}'", table, docCode));
         }

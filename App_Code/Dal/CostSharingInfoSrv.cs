@@ -219,7 +219,7 @@ public class CostSharingInfoSrv
 
         listSql.Clear();
 
-        sql = string.Format("select id from department where name like '%{0}%' and name like '%{1}%' and name like '%{2}%'", dict["区域（新）"], dict["操作模式"], dict["省份(新)"]);
+        sql = string.Format("select id from department where name like '%{0}%' and name like '%{1}%' and name like '%{2}%'", dict["区域（新）"], dict["操作模式"], dict["省份（新）"]);
         DataTable dt = SqlHelper.Find(sql).Tables[0];
 
         if (dt.Rows.Count == 0) {

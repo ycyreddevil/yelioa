@@ -29,6 +29,7 @@ public partial class ExportExcelHelper : System.Web.UI.Page
         {
             string fileCode = Request.Params["fileCode"];
             string path = Server.MapPath("~/tempExportFile");
+            //string path = "/tempExportFile";
             if (!Directory.Exists(path))
             {
                 Directory.CreateDirectory(path);
@@ -53,7 +54,7 @@ public partial class ExportExcelHelper : System.Web.UI.Page
                     DataRow newRow = newDt.NewRow();
                     for (int j = 0; j < listcolNames.Count; j++)
                     {
-                        if (listcolNames[j] != "operate")
+                        if (listcolNames[j] != "operate" && listcolNames[j] != "checkbox")
                             newRow[listcolNames[j]] = row[listcolNames[j]];                        
                     }
                     newDt.Rows.Add(newRow);

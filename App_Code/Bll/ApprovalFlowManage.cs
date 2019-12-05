@@ -77,8 +77,8 @@ public class ApprovalFlowManage
 
         WxNetSalesHelper wxNetSalesHelper = new WxNetSalesHelper(appSecret, thisAppName, agentId);
         //// 给待审批人发送消息
-        wxNetSalesHelper.GetJsonAndSendWxMsg(approverIds, "请及时审批 提交人为:" + user.userName
-            + "的单据,谢谢!", url2, agentId);
+        //wxNetSalesHelper.GetJsonAndSendWxMsg(approverIds, "请及时审批 提交人为:" + user.userName
+        //    + "的单据,谢谢!", url2, agentId);
         //// 给提交人发送消息
         wxNetSalesHelper.GetJsonAndSendWxMsg(user.wechatUserId, "您的审批单据已提交 请耐心等待审批人审批", url1, agentId);
 
@@ -248,7 +248,7 @@ public class ApprovalFlowManage
                     //清除审批人相关信息
                     ApprovalFlowSrv.ClearCurrentApproverInfo(table, docCode);
                     // 更新表单状态
-                    if ("yl_reimburse".Equals(table))
+                    if ("yl_reimburse".Equals(table) || "wages".Equals(table) || "outer_wages".Equals(table) || "tax".Equals(table))
                     {
                         ApprovalFlowSrv.UpdateDocStatus(table, docCode, "已拒绝", 0);
                     }

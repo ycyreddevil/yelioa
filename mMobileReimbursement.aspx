@@ -433,7 +433,7 @@
         }
 
         function agree() {
-            if (!isOverBudget || $("#fm")[0].isPrepaid.value == '是' || $('#isOverBudget').html() == "(预算外单据)") {
+            if (!isOverBudget || $('#isOverBudget').html() == "(预算外单据)") {
                 approve("同意");
             } else {
                 $.messager.alert('提示', '预算余额不足', 'info');
@@ -535,7 +535,7 @@
                     html += '<span class="weui-badge" style= "background-color:slategray">财务未审批</span>';
                 }
 
-                if (tempData[i].actual_fee_amount == "") {
+                if (tempData[i].pay_amount == 0) {
                     html += '<span class="weui-badge" style= "background-color:slategray">未付款</span>';
                 } else {
                     html += '<span class="weui-badge" style= "background-color:limegreen">已付款</span>';

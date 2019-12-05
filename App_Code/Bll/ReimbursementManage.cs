@@ -18,9 +18,9 @@ public class ReimbursementManage
         //
     }
 
-    public static DataSet GetInfos(string name, string keyword)
+    public static DataSet GetInfos(string name, string keyword, int year, int month)
     {
-        return ReimbursementSrv.GetInfos(name, keyword);
+        return ReimbursementSrv.GetInfos(name, keyword, year, month);
     }
 
     public static DataSet GetDocumnetsInfosRelatedToMe(string userId, string keyword)
@@ -81,9 +81,10 @@ public class ReimbursementManage
         }
     }
 
-    public static DataTable findByCond(string applystarttm, string applyendtm, string starttm, string endtm, string applyName, string depart, string fee_depart, string fee_detail, string account_status, string status)
+    public static DataTable findByCond(string applystarttm, string applyendtm, string starttm, string endtm, string applyName, string depart, string fee_depart, string fee_detail
+        , string account_status, string status,string sortName,string  sortOrder)
     {
-        DataSet ds = ReimbursementSrv.findByCond(null,applystarttm, applyendtm, starttm, endtm, applyName, depart, fee_depart, fee_detail, account_status, status);
+        DataSet ds = ReimbursementSrv.findByCond(null,applystarttm, applyendtm, starttm, endtm, applyName, depart, fee_depart, fee_detail, account_status, status, sortName, sortOrder);
 
         if (ds == null)
             return null;
@@ -93,7 +94,7 @@ public class ReimbursementManage
 
     public static DataTable findByCode(string code)
     {
-        DataSet ds = ReimbursementSrv.findByCond(code,null,null, null, null, null, null, null, null, null, null);
+        DataSet ds = ReimbursementSrv.findByCond(code,null,null, null, null, null, null, null, null, null, null, null, null);
 
         if (ds == null)
             return null;
@@ -161,6 +162,30 @@ public class ReimbursementManage
                         + dict["account_approver"] + "，结果为:" + dict["account_result"] + ",意见为:"+ dict["account_opinion"] +"，请知悉"
                         , "http://yelioa.top/mMySubmittedReimburse.aspx?docCode=" + codeList[i]);
                 }
+
+                // 审批拒绝的需要把关联的发票一起拒绝
+                if ("拒绝" == dict["account_result"].ToString())
+                {
+                    string sql = string.Format("update yl_reimburse_detail set status = '拒绝', opinion = '关联的移动报销单据被拒绝' where code like '%{0}%'", codeList[i]);
+
+                    // 删除关联差旅申请
+                    sql += string.Format("delete from wf_form_差旅申请 where reimburseCode = '{0}';", codeList[i]);
+
+                    // 删除关联借款单 并把借款单的金额还原
+                    DataTable dt = SqlHelper.Find(string.Format("select * from yl_reimburse_loan where ReimburseCode = '{0}'", codeList[i])).Tables[0];
+
+                    sql += string.Format("delete from yl_reimburse_loan where ReimburseCode = '{0}';", codeList[i]);
+
+                    foreach (DataRow dr in dt.Rows)
+                    {
+                        decimal amount = Decimal.Parse(dr["amount"].ToString());
+                        string tempCode = dr["docCode"].ToString();
+
+                        sql += string.Format("update wf_form_借款单 set remainAmount = remainAmount + {0} where docCode = '{1}';", amount, tempCode);
+                    }
+
+                    SqlHelper.Exce(sql);
+                }
             }
         }
         return res;
@@ -189,34 +214,34 @@ public class ReimbursementManage
 
         string[] msgs = res.Split(';');
         //DataTable dtUser = ReimbursementSrv.GetUserNameAndWxUserId();
-        WxCommon wx = new WxCommon("mMobileReimbursement",
-            "UM0i5TXSIqQIOWk-DmUlfTqBqvZAfbZdGGDKiFZ-nRk",
-            "1000006",
-            "");
-        for (int i = 0; i < msgs.Length - 1; i++)
-        {
-            SqlExceRes sqlRes = new SqlExceRes(msgs[i]);
-            if (sqlRes.Result == SqlExceRes.ResState.Success)
-            {
-                Dictionary<string, string> dict = (Dictionary<string, string>)list[i];
-                string WxUserId = SqlHelper.Find("select wechatUserId from users where userName = '" + dict["name"] + "'").Tables[0].Rows[0][0].ToString();
-                //foreach (DataRow row in dtUser.Rows)
-                //{
-                //    if (row["userName"].ToString() == dict["name"])
-                //    {
-                //        WxUserId = row["wechatUserId"].ToString();
-                //        break;
-                //    }
-                //}
-                if (!string.IsNullOrEmpty(WxUserId))
-                {
-                    // 发送审批的消息给提交者
-                    wx.SendWxMsg(WxUserId, "审批通知", "您编号为:" + codeList[i] + "的审批单据已被财务进行金额复审,审批人为:"
-                        + dict["approver"] + "，财务已付款" + actualFeeList[i] + "元，请知悉"
-                        , "http://yelioa.top/mMySubmittedReimburse.aspx?docCode=" + codeList[i]);
-                }
-            }
-        }
+        //WxCommon wx = new WxCommon("mMobileReimbursement",
+        //    "UM0i5TXSIqQIOWk-DmUlfTqBqvZAfbZdGGDKiFZ-nRk",
+        //    "1000006",
+        //    "");
+        //for (int i = 0; i < msgs.Length - 1; i++)
+        //{
+        //    SqlExceRes sqlRes = new SqlExceRes(msgs[i]);
+        //    if (sqlRes.Result == SqlExceRes.ResState.Success)
+        //    {
+        //        //Dictionary<string, string> dict = (Dictionary<string, string>)list[i];
+        //        //string WxUserId = SqlHelper.Find("select wechatUserId from users where userName = '" + dict["name"] + "'").Tables[0].Rows[0][0].ToString();
+        //        //foreach (DataRow row in dtUser.Rows)
+        //        //{
+        //        //    if (row["userName"].ToString() == dict["name"])
+        //        //    {
+        //        //        WxUserId = row["wechatUserId"].ToString();
+        //        //        break;
+        //        //    }
+        //        //}
+        //        //if (!string.IsNullOrEmpty(WxUserId))
+        //        //{
+        //        //    // 发送审批的消息给提交者
+        //        //    wx.SendWxMsg(WxUserId, "审批通知", "您编号为:" + codeList[i] + "的审批单据已被财务进行金额复审,审批人为:"
+        //        //        + dict["approver"] + "，财务已付款" + actualFeeList[i] + "元，请知悉"
+        //        //        , "http://yelioa.top/mMySubmittedReimburse.aspx?docCode=" + codeList[i]);
+        //        //}
+        //    }
+        //}
 
         return res;
     }
@@ -280,11 +305,11 @@ public class ReimbursementManage
         {
             sql = string.Format("SELECT ifnull(sum(fee_amount),0) FROM `yl_reimburse` WHERE fee_department LIKE " +
                         "CONCAT((SELECT NAME FROM department WHERE Id = {0} ), '%')" +
-                        "AND fee_detail = '{1}' and status='已审批' and isOverBudget = 0 and approval_time between '{2}-{3}-1 00:00:00 ' and '{4}-{5}-1 00:00:00' ;", secondDS.Tables[0].Rows[0]["DepartmentId"].ToString(),
+                        "AND fee_detail = '{1}' and status='已审批' and (account_result is null or account_result = '同意') and isOverBudget = 0 and approval_time between '{2}-{3}-1 00:00:00 ' and '{4}-{5}-1 00:00:00' ;", secondDS.Tables[0].Rows[0]["DepartmentId"].ToString(),
                          feeDetail, now.Year, now.Month, nextYear, nextMonth);
             sql+= string.Format("SELECT count(*) FROM `yl_reimburse` WHERE fee_department LIKE " +
                         "CONCAT((SELECT NAME FROM department WHERE Id = {0} ), '%')" +
-                        "AND fee_detail = '{1}' and status='已审批' and isOverBudget = 0 and approval_time between '{2}-{3}-1 00:00:00 ' and '{4}-{5}-1 00:00:00' ;", secondDS.Tables[0].Rows[0]["DepartmentId"].ToString(),
+                        "AND fee_detail = '{1}' and status='已审批' and (account_result is null or account_result = '同意') and isOverBudget = 0 and approval_time between '{2}-{3}-1 00:00:00 ' and '{4}-{5}-1 00:00:00' ;", secondDS.Tables[0].Rows[0]["DepartmentId"].ToString(),
                          feeDetail, now.Year, now.Month, nextYear, nextMonth);
 
             DataSet thirdDS = SqlHelper.Find(sql);

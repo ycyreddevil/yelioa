@@ -165,7 +165,7 @@ public class CostSharingInfoManage
                 return dict;
             }
         }
-        if(string.IsNullOrEmpty(dict["网点代码"]))
+        if(string.IsNullOrEmpty(dict["网点代码"]) || dict["区域（新）"].Equals("自然流"))
         {
             dict["状态"] = "无需导入";
             return dict;

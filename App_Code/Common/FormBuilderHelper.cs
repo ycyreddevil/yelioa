@@ -752,11 +752,11 @@ public class FormBuilderHelper
                 string userId = set.Tables[0].Rows[0]["userId"].ToString();
                 string departmentId = set.Tables[0].Rows[0]["departmentId"].ToString();
 
-                sql = string.Format("select userName from users where userId = '{0}'", userId);
-                set.Tables[0].Rows[0]["userId"] = SqlHelper.Find(sql).Tables[0].Rows[0][0];
+                //sql = string.Format("select userName from users where userId = '{0}'", userId);
+                set.Tables[0].Rows[0]["userId"] = userId;
 
-                sql = string.Format("select name from department where id = '{0}'", departmentId);
-                set.Tables[0].Rows[0]["departmentId"] = SqlHelper.Find(sql).Tables[0].Rows[0][0];
+                //sql = string.Format("select name from department where id = '{0}'", departmentId);
+                set.Tables[0].Rows[0]["departmentId"] = departmentId;
 
                 res.Add("data", JsonHelper.DataTable2Json(set.Tables[0]));
             }

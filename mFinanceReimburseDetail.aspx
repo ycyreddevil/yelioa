@@ -18,15 +18,24 @@
         [v-cloak] {
             display: none;
         }
+        .success{
+            color: forestgreen
+        }
+        .error{
+            color: orangered
+        }
+        .valueClass{
+            margin-left: -20px
+        }
     </style>
 </head>
 <body>
     <div id="title" v-cloak>
         <van-nav-bar
             :title="`${current_month}月发票上传`"
-            left-text="刷新"
+            left-text="保存草稿"
             right-text="提交"
-            @click-left="refresh"
+            @click-left="saveDraft"
             @click-right="submit">
         </van-nav-bar>
         <%--<van-cell-group>
@@ -34,7 +43,7 @@
         </van-cell-group>--%>
         <mu-paper class="demo-paper" :z-depth="1" style="margin:10px 0">
             <van-cell-group>
-                <van-cell title="选择报销单据" :value="`已勾选${chooseReimburseCode.length}张报销单`" is-link @click="showReimburseList"/>
+                <van-cell value-class="valueClass" title="选择报销单据" :value="`已勾选${chooseReimburseCode.length}张报销单(${reimburseAmount}元)`" is-link @click="showReimburseList"/>
             </van-cell-group>
             <van-cell-group>
                 <van-field v-model="receiptDesc" type="textarea" required label="活动描述" clearable autosize
@@ -58,48 +67,55 @@
                 <van-uploader style="margin-left:10px" multiple :before-read="beforeRead" :after-read="afterRead" :preview-image="previewImage"/>
             </van-cell-group>
         </mu-paper>
-        <van-divider>发票明细</van-divider>
+        <van-divider>发票明细(总计{{computeTotalAmount}}元)</van-divider>
         <!-- 发票明细-->
         <mu-paper class="demo-paper" :z-depth="1" style="margin:15px" v-for="(temp,index) in receiptList">
-            <van-cell-group>
-                <van-row v-show="temp.receiptType != '实报实销'">
-                    <van-col span="8">
-                        <van-image @click="isImagePreviewShow = true; photoList = [];photoList.push(temp.receiptAttachment);location.hash='xxx'" style="margin-left:10px" width="100" height="100" fit="contain" :src="temp.receiptAttachment">
-                            <template v-slot:loading>
-                                <van-loading type="spinner" size="20" />
-                            </template>
-                        </van-image>
-                    </van-col>
-                    <van-col span="8" offset="8"><mu-button @click="isDeleteDetail = true; clickIndex = index" style="float:right" icon color="red"><mu-icon value="delete"></mu-icon></mu-button></van-col>
-                </van-row>
-                <van-field v-show="temp.receiptType != '实报实销'" required readonly label="发票用途" v-model="temp.receiptType" @click="showReimburseType(index)"></van-field>
+            <van-collapse v-model="activeName" accordion>
+                <van-collapse-item :title="`${temp.feeType == '实报实销' ? '出差补贴' : temp.feeType.split(',')[0]} ${temp.receiptAmount}元`" :name="index" :value="errorIndex === index ? '失败' : '成功'" :value-class="errorIndex === index ? 'error' : 'success'">
+                    <van-cell-group>
+                        <van-row v-show="temp.receiptType != '实报实销'">
+                            <van-col span="8">
+                                <van-image @click="isImagePreviewShow = true;photoList = [];photoList.push(temp.receiptAttachment);location.hash='xxx'" style="margin-left:10px" width="100" height="100" fit="contain" :src="temp.receiptAttachment">
+                                    <template v-slot:loading>
+                                        <van-loading type="spinner" size="20" />
+                                    </template>
+                                </van-image>
+                            </van-col>
+                            <van-col span="8" offset="8"><mu-button @click="isDeleteDetail = true; clickIndex = index" style="float:right" icon color="red"><mu-icon value="delete"></mu-icon></mu-button></van-col>
+                        </van-row>
+                        <van-field v-show="temp.receiptType != '实报实销'" required readonly label="发票用途" v-model="temp.receiptType" @click="showReimburseType(index)"></van-field>
                 
-                <van-field v-show="temp.receiptType != '实报实销'" v-model="temp.receiptDate" clearable required label="发票日期"></van-field>
+                        <van-field v-show="temp.receiptType == '隐藏该项'" v-model="temp.receiptDate" clearable required label="发票日期"></van-field>
                 
-                <van-field required v-model="temp.activityDate" readonly label="费用发生日期" @click="showDate(index)" 
-                    right-icon="question-o" @click-right-icon="$toast('出差补贴必须精确到小时分钟，其他精确到日期即可')"></van-field>
+                        <van-field required v-model="temp.activityDate" readonly label="费用发生日期" @click="showDate(index, temp.receiptType)" 
+                            right-icon="question-o" @click-right-icon="$toast('出差补贴必须精确到具体时间点，12:00以前算上午，12：00到18:00算下午；18：00以后算晚上')"></van-field>
                 
-                <van-field required v-show="temp.receiptType == '实报实销' || temp.receiptType == '住宿费'" v-model="temp.activityEndDate" readonly label="费用结束日期" @click="showEndDate(index)" 
-                    right-icon="question-o" @click-right-icon="$toast('出差补贴必须精确到小时分钟，其他精确到日期即可')"></van-field>
+                        <van-field required v-show="temp.receiptType == '实报实销' || temp.receiptType == '住宿费'" v-model="temp.activityEndDate" readonly label="费用结束日期" @click="showEndDate(index, temp.receiptType)" 
+                            right-icon="question-o" @click-right-icon="$toast('出差补贴必须精确到具体时间点，12:00以前算上午，12：00到18:00算下午；18：00以后算晚上')"></van-field>
                 
-                <van-field v-show="temp.receiptType != '实报实销'" v-model="temp.receiptCode" clearable required label="发票代码" 
-                    right-icon="question-o" @click-right-icon="$toast('请核对识别的发票编号是否正确，若不正确，请修改，否则无法正常提交')"></van-field>
-                
-                <van-field v-show="temp.feeType.indexOf('增值税') > -1" v-model="temp.sellerRegisterNum" clearable required label="纳税人识别号" 
-                    right-icon="question-o" @click-right-icon="$toast('请确定纳税人识别号与所选公司匹配，若不正确，请修改，否则无法正常提交')"></van-field>
-                
-                <van-field type="number" v-model="temp.receiptAmount" required :label="temp.receiptType != '实报实销' ? '发票金额' : '补贴金额'"></van-field>
+                        <van-field v-show="temp.receiptType != '实报实销'" v-model="temp.receiptCode" clearable required label="发票代码" 
+                            right-icon="question-o" @click-right-icon="$toast('请核对识别的发票代码是否正确，若不正确，请修改，否则无法正常提交')"></van-field>
 
-                <van-field v-model="temp.receiptPerson" v-show="temp.receiptType != '实报实销'" clearable required label="发票人" 
-                    right-icon="question-o" @click-right-icon="$toast('除实名制火车票、飞机票、汽车票，其余都填无即可')" placeholder="除实名制火车飞机汽车票，其余填无"></van-field>
+                        <van-field v-show="temp.receiptType != '实报实销'" v-model="temp.receiptNum" clearable required label="发票号码" 
+                            right-icon="question-o" @click-right-icon="$toast('请核对识别的发票号码是否正确，若不正确，请修改，否则无法正常提交')"></van-field>
                 
-                <van-field v-show="temp.receiptType != '实报实销'" v-model="temp.relativePerson" clearable required label="同行人"
-                    right-icon="question-o" @click-right-icon="$toast('没有填无')" placeholder="没有填无"></van-field>
-                <%--<van-field v-show="temp.receiptType != '出差补贴'" type="number" readonly v-model="temp.receiptTax" required label="发票税额" 
-                    right-icon="question-o" @click-right-icon="$toast('税额不允许修改')"></van-field>--%>
-                <van-field v-model="temp.receiptPlace" placeholder="请输入省份和城市" required :label="temp.receiptType == '实报实销' ? '出差地' : '发票地'" right-icon="question-o" 
-                    @click-right-icon="$toast('住宿费必须输入XX省XX市或XX省XX市XX县，否则无法提交')"></van-field>
-            </van-cell-group>
+                        <van-field v-show="temp.feeType && temp.feeType.indexOf('增值税') > -1" v-model="temp.sellerRegisterNum" clearable required label="纳税人识别号" 
+                            right-icon="question-o" @click-right-icon="$toast('请确定纳税人识别号与所选公司匹配，若不正确，请修改，否则无法正常提交')"></van-field>
+                
+                        <van-field type="number" v-model="temp.receiptAmount" required :label="temp.receiptType != '实报实销' ? '发票报销金额' : '补贴金额'"></van-field>
+
+                        <van-field v-model="temp.receiptPerson" v-show="temp.receiptType != '实报实销'" clearable required label="发票人" 
+                            right-icon="question-o" @click-right-icon="$toast('除实名制火车票、飞机票、汽车票，其余都填无即可')" placeholder="除实名制火车飞机汽车票，其余填无"></van-field>
+                
+                        <van-field v-show="temp.receiptType != '实报实销'" v-model="temp.relativePerson" clearable required label="同行人"
+                            right-icon="question-o" @click-right-icon="$toast('没有填无')" placeholder="没有填无"></van-field>
+                        <%--<van-field v-show="temp.receiptType != '出差补贴'" type="number" readonly v-model="temp.receiptTax" required label="发票税额" 
+                            right-icon="question-o" @click-right-icon="$toast('税额不允许修改')"></van-field>--%>
+                        <van-field v-model="temp.receiptPlace" placeholder="请输入省份和城市" required :label="temp.receiptType == '实报实销' ? '出差地' : '发票地'" right-icon="question-o" 
+                            @click-right-icon="$toast('住宿费必须输入XX省XX市或XX省XX市XX县，否则无法提交')"></van-field>
+                    </van-cell-group>
+                </van-collapse-item>
+            </van-collapse>
         </mu-paper>
         <!--勾选报销单据弹出框 -->
         <van-popup v-model="isShowReimburseList" position="bottom" style="height:300px">
@@ -113,7 +129,7 @@
                       :value="`剩余金额:${selfReimburse.remain_fee_amount}`"
                       :title="`${selfReimburse.LMT.split(' ')[0]} ${selfReimburse.remark}`"
                       @click="toggle(index, selfReimburse.remain_fee_amount)">
-                      <van-checkbox
+                      <van-checkbox disabled
                         :name="selfReimburse.code"
                         ref="checkboxes"
                         slot="right-icon"
@@ -138,10 +154,10 @@
         </van-popup>
         <!-- 日期选择弹出框-->
         <van-popup v-model="isShowDate" position="bottom">
-            <van-datetime-picker v-model="nowDate" @cancel="cancelDate" @confirm="confirmDate" type="datetime" :formatter="formatter"></van-datetime-picker>
+            <van-datetime-picker v-model="nowDate" @cancel="cancelDate" @confirm="confirmDate" :type="chooseReceiptType == '实报实销' ? 'datetime' : 'date'" :formatter="formatter" :filter="filter"></van-datetime-picker>
         </van-popup>
         <van-popup v-model="isShowEndDate" position="bottom">
-            <van-datetime-picker v-model="nowDate" @cancel="cancelEndDate" @confirm="confirmEndDate" type="datetime" :formatter="formatter"></van-datetime-picker>
+            <van-datetime-picker v-model="nowDate" @cancel="cancelEndDate" @confirm="confirmEndDate" :type="chooseReceiptType == '实报实销' ? 'datetime' : 'date'" :formatter="formatter" :filter="filter"></van-datetime-picker>
         </van-popup>
         <!--图片预览-->
         <van-image-preview close-on-popstate 
@@ -190,12 +206,14 @@
     }
 
     //var constPhoteList = []
-    const salesReimburseDetail = ["出差车船费","住宿费","出差补贴","餐费", "市内交通费", "会议费", "培训费", "办公用品", "工作餐", "场地费", "招待餐费", "纪念品", "外协劳务", "外部人员机票/火车票", "外部人员住宿费", "外部人员交通费", "学术会费", "营销办公费"]
-    const notSalesReimburseDetail = ["出差车船费","住宿费", "出差补贴","交通费", "汽车使用费","业务招待费", "培训费", "办公费", "租赁费", "劳保费", "通讯费", "福利费", "物业费", "水电费", "招聘费", "运输费", "材料费", "试验费", "检测费", "专利费", "注册费", "服务费", "其他"]
+    const salesReimburseDetail = ["出差车船费","住宿费","餐费", "市内交通费", "会议费", "培训费", "办公用品", "工作餐", "场地费", "招待餐费", "纪念品", "外协劳务", "外部人员机票/火车票", "外部人员住宿费", "外部人员交通费", "学术会费", "营销办公费"]
+    const notSalesReimburseDetail = ["出差车船费","住宿费", "交通费", "汽车使用费","业务招待费", "培训费", "办公费", "租赁费", "劳保费", "通讯费", "福利费", "物业费", "水电费", "招聘费", "运输费", "材料费", "试验费", "检测费", "专利费", "注册费", "服务费", "其他"]
 
     var vue = new Vue({
         el: '#title',
         data: {
+            errorIndex: 99,
+            activeName: '',
             isDeleteDetail: false,
             isImagePreviewShow: false,
             previewImage: false,
@@ -216,12 +234,25 @@
             allowanceMap: null,
             orientation: null,
             chooseReimburseCompany: '',
+            chooseReimburseFeeDetail: '',
             receiptDesc: '',
-            current_month: new Date().getDate() < 6 ? new Date().getMonth() : new Date().getMonth() + 1,
+            current_month: new Date().getDate() < 4 ? new Date().getMonth() : new Date().getMonth() + 1,
+            receiptCodeList: [],
+            receiptNumList: [],
+            chooseReceiptType: '',
+            avoidQuickClick: true
         },
         methods: {
-            refresh() {
-                location.reload()
+            saveDraft() {
+                web({
+                    action: 'draft',
+                    batchNo: this.chooseBatchNo,
+                    code: JSON.stringify(this.chooseReimburseCode),
+                    receipt: JSON.stringify(this.receiptList),
+                    receiptDesc: this.receiptDesc
+                }).then(res => {
+                    this.$toast('保存草稿成功')
+                })
             },
             submit() {
                 if (this.chooseReimburseCode.length === 0) {
@@ -233,21 +264,31 @@
                 }
 
                 let totalAmount = 0
+                let i = 0
                 for (let temp of this.receiptList) {
                     let flag = true
                     let msg = ''
-                    Object.keys(temp).forEach((v, i) => {
-                        if (temp[v] === '') {
-                            msg = v+'不合法,请重新确认！'
-                            flag = false
-                            return
-                        }
-                    })
-                    if (!flag) {
-                        this.$toast(msg)
-                        return
+
+                    //如果识别金额为undefined 则识别金额为填入金额
+                    if (!temp['originAmount']) {
+                        temp['originAmount'] = temp['receiptAmount']
                     }
-                    if (temp['feeType'] != '火车票' && temp['feeType'] != '飞机票') {
+
+                    // 发票用途不能为空
+                    if (!temp['receiptType'] || temp['receiptType'] === '') {
+                        msg = '发票用途不能为空'
+                        flag = false
+                    }
+                    else if (temp['activityDate'] === null || temp['activityDate'].indexOf('0000') > -1 || temp['activityDate'].indexOf('0001') > -1) {
+                        msg = '费用开始时间不能为空'
+                        flag = false
+                    }
+                    else if ((temp['receiptType'] === '住宿费' || temp['receiptType'] === '实报实销') && 
+                        (temp['activityEndDate'] === null || temp['activityDate'].indexOf('0000') > -1 || temp['activityDate'].indexOf('0001') > -1)) {
+                        msg = '费用结束时间不能为空'
+                        flag = false
+                    }
+                    else if (temp['feeType'] != '火车票' && temp['feeType'] != '飞机票') {
                         if (temp['receiptPlace'].indexOf('省') === -1 && (temp['receiptPlace'] !== '北京市'
                             && temp['receiptPlace'] !== '上海市' && temp['receiptPlace'] !== '天津市' && temp['receiptPlace'] !== '重庆市')) {
                             msg = '发票地址必须包含省份'
@@ -258,13 +299,16 @@
                         }
                     }
                     if (!flag) {
+                        this.activeName = i
+                        this.errorIndex = i
                         this.$toast(msg)
                         return
                     }
-                        
+
+                    i++
                     totalAmount += parseFloat(temp["receiptAmount"])
                 }
-                if (totalAmount > this.reimburseAmount) {
+                if (totalAmount > this.reimburseAmount + 0.01) {
                     this.$toast('发票金额不能高于单据金额')
                     return
                 }
@@ -282,6 +326,7 @@
                 }).then(res => {
                     this.$toast.clear();
                     if (res.data.code === 200) {
+                        this.chooseBatchNo = res.data.msg
                         this.$dialog.alert({
                             title: '提示',
                             message: '提交成功'
@@ -301,29 +346,56 @@
                 if (this.chooseReimburseCompany === '')
                     this.chooseReimburseCompany = this.selfReimburseList[index].fee_company
 
+                if (this.chooseReimburseFeeDetail === '')
+                    this.chooseReimburseFeeDetail = this.selfReimburseList[index].fee_detail
+
+                let flag = true
                 if (!this.$refs.checkboxes[index].checked) {
                     // 判断已勾选的报销单是否开票单位一致
                     if (this.selfReimburseList[index].fee_company != this.chooseReimburseCompany) {
                         this.$toast('请关联开票单位一致的报销单！')
+                        flag = false
                         return
                     }
+                    // 判断已勾选的报销单是否费用类型一致
+                    if (this.selfReimburseList[index].fee_detail != this.chooseReimburseFeeDetail) {
+                        this.$toast('请关联费用科目一致的报销单！')
+                        flag = false
+                        return
+                    }
+                    // 如果勾选的推广活动市场费或推广活动渠道费
+                    if ((this.chooseReimburseFeeDetail === '推广活动市场费' || this.chooseReimburseFeeDetail === '推广活动渠道费') && this.chooseReimburseCode.length > 1) {
+                        this.$toast('推广活动市场费或推广活动渠道费只能关联一张报销单！')
+                        flag = false
+                        return
+                    }
+
                     this.reimburseAmount += parseFloat(amount)
                 }
                 else {
                     this.reimburseAmount -= parseFloat(amount)
-                    this.chooseReimburseCompany = ''
+                    if (this.chooseReimburseCode.length === 1) {
+                        this.chooseReimburseCompany = ''
+                        this.chooseReimburseFeeDetail = ''
+                    }
                 }
 
-                this.$refs.checkboxes[index].toggle();
+                if (flag)
+                    this.$refs.checkboxes[index].toggle();
             },
             showReimburseList(temp) {
-                web({ action: 'getSelfReimburseList' }).then(res => {
+                if (this.batchNo && this.batchNo !== '') {
+                    this.$toast('关联移动报销记录暂无法修改');
+                }
+                else {
+                    web({ action: 'getSelfReimburseList' }).then(res => {
                     if (res.data.length === 0)
                         this.$toast('暂无可用报销单据');
                     else
                         this.isShowReimburseList = true
                     this.selfReimburseList = res.data
-                })
+                    })
+                }
             },
             showReimburseType(index) {
                 this.clickIndex = index
@@ -339,13 +411,15 @@
                 this.isShowReimburseType = false
                 this.receiptList[this.clickIndex]["receiptType"] = data
             },
-            showDate(index) {
+            showDate(index, receiptType) {
                 this.clickIndex = index
                 this.isShowDate = true
+                this.chooseReceiptType = receiptType
             },
-            showEndDate(index) {
+            showEndDate(index, receiptType) {
                 this.clickIndex = index
                 this.isShowEndDate = true
+                this.chooseReceiptType = receiptType
             },
             confirmDate(date) {
                 this.isShowDate = false
@@ -371,10 +445,22 @@
                 } else if (type === 'day') {
                     return `${value}日`
                 } else if (type === 'hour') {
-                    return `${value}时`
+                    if (value === '06')
+                        return '上午'
+                    else if (value === '12')
+                        return '下午'
+                    else
+                        return '晚上'
                 } else {
-                    return `${value}分`
+                    return ''
                 }
+            },
+            filter(type, options) {
+                if (type === 'hour') {
+                    return options.filter(option => option !== '00' && option % 6 === 0)
+                }
+
+                return options;
             },
             //deleteImage(file) {
             //    if (this.photoList.length === 0) {
@@ -449,12 +535,6 @@
                         tempData['relativePerson'] = '无'
                         tempData["receiptAttachment"] = url
                         if (templateType == "10100" || templateType == "10101" || templateType == "10102" || templateType == "10103") {  // 增值税发票
-                            tempData['receiptDate'] = info.date;
-                            tempData['receiptCode'] = info.code;
-                            tempData['receiptAmount'] = info.total;
-                            tempData['receiptPlace'] = info.province+info.city;
-                            tempData['receiptNum'] = info.number;
-
                             if (templateType == "10100")
                                 tempData['feeType'] = '增值税专用发票'
                             else if (templateType == "10101")
@@ -464,124 +544,172 @@
                             else if (templateType == "10103")
                                 tempData['feeType'] = '增值税普通发票(卷票)'
 
-                            if (templateType == "10102" && (info.item_names.indexOf('客运服务费') > -1 || info.item_names.indexOf('通行费') > -1))
+                            tempData['receiptDate'] = info.date;
+                            tempData['activityDate'] = info.date.replace('年', '-').replace('月', '-').replace('日', '');
+                            tempData['receiptCode'] = info.code;
+                            tempData['receiptAmount'] = info.total;
+                            if (templateType == "10102" && (info.item_names.indexOf('客运服务费') > -1 || info.item_names.indexOf('通行费') > -1)) {
                                 tempData['receiptTax'] = info.tax;
-                            else if (templateType == "10100")
+                                tempData['feeType'] += "," + info.item_names
+                            } else if (templateType == "10100") {
                                 tempData['receiptTax'] = info.tax;
-                            else
+                            } else {
                                 tempData['receiptTax'] = 0;
+                            }
+                                
+                            tempData['receiptPlace'] = info.province+info.city;
+                            tempData['receiptNum'] = info.number;
                             tempData['receiptPerson'] = '<%=userInfo.userName%>'
-                            tempData['activityDate'] = ''
+                            tempData['activityEndDate'] = null
                             tempData['sellerRegisterNum'] = info.buyer_tax_id
+                            tempData['originAmount'] = info.total
                         } else if (templateType == "10503") {
                             tempData['feeType'] = '火车票'
                             tempData['receiptDate'] = info.date;
+                            tempData['activityDate'] = info.date.replace('年', '-').replace('月', '-').replace('日', '');;
                             tempData['receiptCode'] = info.number;
                             tempData['receiptAmount'] = info.total
                             tempData['receiptTax'] = 0;
                             tempData['receiptPlace'] = info.station_geton + '-' + info.station_getoff;
                             tempData['receiptNum'] = info.number;
                             tempData['receiptPerson'] = info.name
-                            tempData['activityDate'] = ''
+                            tempData['activityEndDate'] = null
+                            tempData['sellerRegisterNum'] = ''
+                            tempData['originAmount'] = info.total
                         } else if (templateType == "10500") {
                             tempData['feeType'] = '出租车票'
                             tempData['receiptDate'] = info.date;
+                            tempData['activityDate'] = info.date.replace('年', '-').replace('月', '-').replace('日', '');;
                             tempData['receiptCode'] = info.code;
                             tempData['receiptAmount'] = info.total;
                             tempData['receiptTax'] = 0;
-                            tempData['receiptNum'] = info.number;
                             tempData['receiptPlace'] = info.place
+                            tempData['receiptNum'] = info.number;
                             tempData['receiptPerson'] = '<%=userInfo.userName%>'
-                            tempData['activityDate'] = ''
+                            tempData['activityEndDate'] = null
+                            tempData['sellerRegisterNum'] = ''
+                            tempData['originAmount'] = info.total
                         } else if (templateType == "10400") {
                             tempData['feeType'] = '通用机打发票'
                             tempData['receiptDate'] = info.date;
+                            tempData['activityDate'] = info.date.replace('年', '-').replace('月', '-').replace('日', '');;
                             tempData['receiptCode'] = info.code;
                             tempData['receiptAmount'] = info.total;
                             tempData['receiptTax'] = 0;
-                            tempData['receiptNum'] = info.number;
                             tempData['receiptPlace'] = info.province + info.city
+                            tempData['receiptNum'] = info.number;
                             tempData['receiptPerson'] = '<%=userInfo.userName%>'
-                            tempData['activityDate'] = ''
+                            tempData['activityEndDate'] = null
+                            tempData['sellerRegisterNum'] = ''
+                            tempData['originAmount'] = info.total
                         } else if (templateType == "10506") {
                             tempData['feeType'] = '飞机票'
-                            tempData['receiptDate'] = info.date;
+                            tempData['receiptDate'] = null;
+                            tempData['activityDate'] = null;
                             tempData['receiptCode'] = info.number;
-                            tempData['receiptAmount'] = parseFloat(info.fare) + parseFloat(info.fuel_surcharge);
+                            tempData['receiptAmount'] = parseFloat(info.total);
                             tempData['receiptTax'] = 0;
                             tempData['receiptPlace'] = info.flights[0].from + '-' + info.flights[0].to
                             tempData['receiptNum'] = info.number;
                             tempData['receiptPerson'] = info.user_name
-                            tempData['activityDate'] = ''
+                            tempData['activityEndDate'] = null
+                            tempData['sellerRegisterNum'] = ''
+                            tempData['originAmount'] = info.total
                         } else if (templateType == "10200") {
                             tempData['feeType'] = '定额发票'
+                            tempData['receiptDate'] = ''
+                            tempData['activityDate'] = null;
                             tempData['receiptCode'] = info.code;
                             tempData['receiptAmount'] = info.total;
                             tempData['receiptTax'] = 0;
-                            tempData['receiptNum'] = info.number;
                             tempData['receiptPlace'] = info.province + info.city
+                            tempData['receiptNum'] = info.number;
                             tempData['receiptPerson'] = '<%=userInfo.userName%>'
-                            tempData['receiptDate'] = ''
-                            tempData['activityDate'] = ''
+                            tempData['activityEndDate'] = null
+                            tempData['sellerRegisterNum'] = ''
+                            tempData['originAmount'] = info.total
                         } else if (templateType == "10505") {
                             // 汽车票
                             tempData['feeType'] = '汽车票'
+                            tempData['receiptDate'] = info.date;
+                            tempData['activityDate'] = info.date.replace('年', '-').replace('月', '-').replace('日', '');;
                             tempData['receiptCode'] = info.code;
                             tempData['receiptAmount'] = info.total;
                             tempData['receiptTax'] = 0;
-                            tempData['receiptNum'] = info.number;
                             tempData['receiptPlace'] = info.station_geton + '-' + info.station_getoff;
+                            tempData['receiptNum'] = info.number;
                             tempData['receiptPerson'] = info.name;
-                            tempData['receiptDate'] = info.date;
-                            tempData['activityDate'] = ''
+                            tempData['activityEndDate'] = null
+                            tempData['sellerRegisterNum'] = ''
+                            tempData['originAmount'] = info.total
+                        } else if (templateType == "10507") {
+                            // 汽车票
+                            tempData['feeType'] = '过桥过路票'
+                            tempData['receiptDate'] = info.date
+                            tempData['activityDate'] = info.date.replace('年', '-').replace('月', '-').replace('日', '');;
+                            tempData['receiptCode'] = info.code;
+                            tempData['receiptAmount'] = info.total;
+                            tempData['receiptTax'] = 0;
+                            tempData['receiptPlace'] = ''
+                            tempData['receiptNum'] = info.number === null || info.number === '' ? info.code : info.number;
+                            tempData['receiptPerson'] = '<%=userInfo.userName%>'
+                            tempData['activityEndDate'] = null
+                            tempData['sellerRegisterNum'] = ''
+                            tempData['originAmount'] = info.total
                         } else {
                             tempData['feeType'] = '其他票'
-                            tempData['receiptDate'] = '';
-                            tempData['receiptCode'] = '';
-                            tempData['receiptAmount'] = 0;
-                            tempData['receiptTax'] = 0;
-                            tempData['receiptPlace'] = '';
-                            tempData['receiptNum'] = '';
-                            tempData['receiptPerson'] = '<%=userInfo.userName%>'
+                            tempData['receiptDate'] = ''
                             tempData['activityDate'] = ''
+                            tempData['receiptCode'] = ''
+                            tempData['receiptAmount'] = ''
+                            tempData['receiptTax'] = ''
+                            tempData['receiptPlace'] = ''
+                            tempData['receiptNum'] = ''
+                            tempData['receiptPerson'] = '<%=userInfo.userName%>'
+                            tempData['activityEndDate'] = null
+                            tempData['sellerRegisterNum'] = ''
+                            tempData['originAmount'] = ''
+                        }
+
+                        if (this.receiptCodeList.indexOf(tempData['receiptCode']) > -1 && this.receiptNumList.indexOf(tempData['receiptNum']) > -1) {
+                            this.$toast('该发票不能重复上传')
+                            continue
                         }
 
                         this.receiptList.push(tempData)
-                        //else {
-                        //    this.$toast('识别失败，发票照片不清晰，请上传更为清晰的发票或手工填写相关信息后提交！')
-                        //    tempData['relativePerson'] = '无'
-                        //    tempData["receiptAttachment"] = url
-                        //    tempData['feeType'] = '识别错误票'
-                        //    tempData['receiptDate'] = '';
-                        //    tempData['receiptCode'] = '';
-                        //    tempData['receiptAmount'] = 0;
-                        //    tempData['receiptTax'] = 0;
-                        //    tempData['receiptPlace'] = '';
-                        //    tempData['receiptNum'] = '';
-                        //    tempData['receiptPerson'] = '无'
-                        //    tempData['activityDate'] = ''
-                        //    tempData['activityEndDate'] = ''
-                            
-                        //    this.receiptList.push(tempData)
-                        //}
+
+                        if (tempData['receiptCode'] !== '')
+                            this.receiptCodeList.push(tempData['receiptCode'])
+                        if (tempData['receiptNum'] !== '')
+                            this.receiptNumList.push(tempData['receiptNum'])
                     }
                     this.$toast.clear();
-                })
+                }).catch(e => {
+                    this.$toast('图片过大，请压缩图片或用电脑上传')
+                });
             },
             appendAllowance() {
                 this.$dialog.confirm({
                   title: '提示',
                   message: '确认新增无票出差补贴吗'
                 }).then(() => {
-                  this.allowanceMap = {}
-                    this.allowanceMap['receiptType'] = '实报实销'
-                    this.allowanceMap['receiptAmount'] = '';
-                    this.allowanceMap['receiptDesc'] = this.receiptDesc
-                    //this.allowanceMap['receiptPerson'] = '无'
+                    this.allowanceMap = {}
+                    this.allowanceMap['relativePerson'] = ''
+                    this.allowanceMap["receiptAttachment"] = ''
+                    this.allowanceMap['feeType'] = '实报实销'
+                    this.allowanceMap['receiptDate'] = ''
+                    this.allowanceMap['activityDate'] = null
+                    this.allowanceMap['receiptCode'] = ''
+                    this.allowanceMap['receiptAmount'] = 1
+                    this.allowanceMap['receiptTax'] = ''
                     this.allowanceMap['receiptPlace'] = ''
-                    this.allowanceMap['activityDate'] = ''
-                    this.allowanceMap['activityEndDate'] = ''
-                    this.receiptList.unshift (this.allowanceMap)
+                    this.allowanceMap['receiptNum'] = '';
+                    this.allowanceMap['receiptPerson'] = ''
+                    this.allowanceMap['activityEndDate'] = null
+                    this.allowanceMap['sellerRegisterNum'] = ''
+                    this.allowanceMap['originAmount'] = ''
+                    this.allowanceMap['receiptType'] = '实报实销'
+                    this.receiptList.unshift(this.allowanceMap)
                 }).catch(() => {
                   // on cancel
                 });
@@ -593,55 +721,61 @@
             },
             deleteDetail() {
                 this.receiptList.splice(this.clickIndex, 1)
+                this.receiptCodeList.splice(this.clickIndex, 1)
+                this.receiptNumList.splice(this.clickIndex, 1)
             },
             overSize() {
                 this.$toast('无法上传超过8m的图片！');
                 return
             }
         },
+        computed: {
+            computeTotalAmount() {
+                let temp = 0.0
+                for (let receipt of this.receiptList) {
+                    temp += parseFloat(receipt['receiptAmount'])
+                }
+                return temp.toFixed(2)
+            }
+        },
         mounted: function () {
-            //history.pushState(null, null, document.URL);
-            //window.addEventListener('popstate', function () {
-            //    history.pushState(null, null, document.URL);
-            //});
-            const _this = this
+            //const _this = this
+            //let isIOS = false
 
-            let isIOS = false
+            //var userAgentInfo = navigator.userAgent;
+            //var Agents = ["iPhone", "iPad"];
+            //for (var v = 0; v < Agents.length; v++) {
+            //    if (userAgentInfo.indexOf(Agents[v]) > 0) {
+            //        isIOS = true;
+            //        break;
+            //    }
+            //}
 
-            var userAgentInfo = navigator.userAgent;
-            var Agents = ["iPhone", "iPad"];
-            for (var v = 0; v < Agents.length; v++) {
-                if (userAgentInfo.indexOf(Agents[v]) > 0) {
-                    isIOS = true;
-                    break;
-                }
-            }
+            //if (isIOS) {
+            //    window.addEventListener('pagehide', function () {
+            //        web({
+            //            action: 'draft',
+            //            batchNo: _this.chooseBatchNo,
+            //            code: JSON.stringify(_this.chooseReimburseCode),
+            //            receipt: JSON.stringify(_this.receiptList),
+            //            receiptDesc: _this.receiptDesc
+            //        }).then(res => {
 
-            if (isIOS) {
-                window.addEventListener('pagehide', function () {
-                    web({
-                        action: 'draft',
-                        batchNo: _this.chooseBatchNo,
-                        code: JSON.stringify(_this.chooseReimburseCode),
-                        receipt: JSON.stringify(_this.receiptList),
-                        receiptDesc: _this.receiptDesc
-                    }).then(res => {
+            //        })
+            //    })
+            //} else {
+            //    window.onbeforeunload = function () {
+            //        web({
+            //            action: 'draft',
+            //            batchNo: _this.chooseBatchNo,
+            //            code: JSON.stringify(_this.chooseReimburseCode),
+            //            receipt: JSON.stringify(_this.receiptList),
+            //            receiptDesc: _this.receiptDesc
+            //        }).then(res => {
 
-                    })
-                })
-            } else {
-                window.onbeforeunload = function () {
-                    web({
-                        action: 'draft',
-                        batchNo: _this.chooseBatchNo,
-                        code: JSON.stringify(_this.chooseReimburseCode),
-                        receipt: JSON.stringify(_this.receiptList),
-                        receiptDesc: _this.receiptDesc
-                    }).then(res => {
-
-                    })
-                }
-            }
+            //        })
+            //    }
+            //}
             
             if (GetQueryString('batchNo')) {
                 // 重新提交 把原始数据带回
@@ -667,20 +801,17 @@
                         this.chooseBatchNo = batchNo
                         web({ action: 'getReSubmitData', batchNo: batchNo }).then(res => {
                             const data = res.data
-                            data.forEach((v, i) => {
-                                let map = {}
-                                Object.keys(v).forEach((v1, i1) => {
-                                    if (v[v1] && v[v1] !== '') {
-                                        map[v1] = v[v1]
-                                    }
-                                })
-                                this.receiptList.push(map)
-                            })
+                            this.receiptList = data
                             data.forEach((v, i) => {
                                 //if (v['receiptAttachment'] !== '')
                                 //    this.photoList.push({ url: v['receiptAttachment'] })
                                 if (v['receiptType'] === '实报实销')
                                     this.allowanceMap = v
+
+                                if (v['receiptCode'] !== '')
+                                    this.receiptCodeList.push(v['receiptCode'])
+                                if (v['receiptNum'] !== '')
+                                    this.receiptNumList.push(v['receiptNum'])
                             })
                             //constPhoteList = this.photoList
                         })

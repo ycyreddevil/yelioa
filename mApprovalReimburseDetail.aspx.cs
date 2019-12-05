@@ -41,8 +41,13 @@ public partial class mApprovalReimburseDetail : System.Web.UI.Page
             {
                 Response.Write(agree());
             }
-            else if (action == "disagree") {
+            else if (action == "disagree")
+            {
                 Response.Write(disagree());
+            }
+            else if (action == "getSalesOrNotSales")
+            {
+                Response.Write(getSalesOrNotSales());
             }
             Response.End();
         }
@@ -58,18 +63,27 @@ public partial class mApprovalReimburseDetail : System.Web.UI.Page
         }
 
         string date = Request.Form["date"];
-        string sql = string.Format("select distinct t1.BatchNo, t1.CreateTime, t1.Code,t1.ReceiptAmount,t1.Status,t3.avatar,t3.userName from (select BatchNo, " +
-            "CreateTime,CODE,sum(ReceiptAmount) ReceiptAmount,STATUS from yl_reimburse_detail group by BatchNo) t1 left join yl_reimburse t2 " +
-           "on t1.code like concat('%', t2.code, '%') left join users t3 on t2.name = t3.userName " +
-           " where t1.status = '已提交' and DATE_FORMAT( createTime, '%Y%m' ) = DATE_FORMAT( CURDATE( ) , '%Y%m' ) group by t1.batchNo", user.userName);
+        string keyword = Request.Form["keyword"];
+
+        string sql = "select distinct t1.BatchNo, t1.CreateTime, t1.Code,t1.ReceiptAmount,t1.Status,t3.avatar,t3.userName,t3.userId from (select BatchNo, " +
+            "CreateTime,CODE,sum(ReceiptAmount) ReceiptAmount,STATUS,SubmitterId from yl_reimburse_detail group by BatchNo) t1 left join users t3 on t3.userId = t1.SubmitterId " +
+           " where t1.status = '已提交'";
 
         if (!string.IsNullOrEmpty(date))
         {
-            sql = string.Format("select distinct t1.BatchNo, t1.CreateTime, t1.Code,t1.ReceiptAmount,t1.Status,t3.avatar,t3.userName from (select BatchNo, " +
-            "CreateTime,CODE,sum(ReceiptAmount) ReceiptAmount,STATUS from yl_reimburse_detail group by BatchNo) t1 left join yl_reimburse t2 " +
-            "on t1.code like concat('%', t2.code, '%') left join users t3 on t2.name = t3.userName " +
-            " where t1.status = '已提交' and to_days(t1.CreateTime) = to_days('{1}') group by t1.batchNo", user.userName, date);
+            sql += string.Format(" and DATE_FORMAT(t1.createTime, '%Y%m') = DATE_FORMAT('{0}', '%Y%m')", date);
         }
+        else
+        {
+            sql += " and DATE_FORMAT(t1.createTime, '%Y%m') = DATE_FORMAT(CURDATE(), '%Y%m')";
+        }
+
+        if (!string.IsNullOrEmpty(keyword))
+        {
+            sql += string.Format(" and (t1.receiptAmount = '{0}' or t3.userName like '%{0}%')", keyword);
+        }
+
+        sql += " group by t1.batchNo order by t1.CreateTime";
 
         DataTable dt = SqlHelper.Find(sql).Tables[0];
 
@@ -148,7 +162,7 @@ public partial class mApprovalReimburseDetail : System.Web.UI.Page
             WxNetSalesHelper wxNetSalesHelper = new WxNetSalesHelper("v5afj_CYpboe-JWNOrCU0Cy-xP5krFq6cWYM9KZfe4o", "发票上报", "1000020");
 
             dt = SqlHelper.Find(string.Format("select t2.wechatUserId, t1.code, t1.remain_fee_amount from yl_reimburse t1 left join users t2 on t1.name = t2.userName " +
-                "where '{0}' like concat('%', t1.code, '%') limit 1", code)).Tables[0];
+                "where '{0}' like concat('%', t1.code, '%')", code)).Tables[0];
             //// 给提交人发送消息
             wxNetSalesHelper.GetJsonAndSendWxMsg(dt.Rows[0][0].ToString(), "您的发票信息财务已审批通过。审批人为:" + user.userName, "http://yelioa.top//mMySubmittedReimburseDetail.aspx", "1000020");
 
@@ -209,21 +223,51 @@ public partial class mApprovalReimburseDetail : System.Web.UI.Page
             // 还原消费记录的可用额度
             string[] codeArray = code.Split(',');
 
-            sql = "";
+            sql = string.Format("select 1 from yl_reimburse t1 left join yl_reimburse_detail_relevance t2 on t1.code = t2.reimburseCode " +
+                "where t2.batchNo = '{0}'", batchNo);
+
+            DataTable dt = SqlHelper.Find(sql).Tables[0];
+
+            string _sql = "";
+
+            double totalReceiptAmount = double.Parse(SqlHelper.Find(string.Format("select sum(receiptAmount) from yl_reimburse_detail " +
+            "where batchNo = '{0}'", batchNo)).Tables[0].Rows[0][0].ToString());
+
             foreach (string tempCode in codeArray)
             {
                 if (string.IsNullOrEmpty(tempCode))
                     continue;
 
-                sql += string.Format("update yl_reimburse set remain_fee_amount = (fee_amount - (select ifnull(sum(receiptAmount), 0) from yl_reimburse_detail " +
-                    "where code like '%{0}%' and status != '拒绝')) where code = '{0}';", tempCode);
+                if (dt.Rows.Count > 0)
+                {
+                    _sql += string.Format("update yl_reimburse t1 left join yl_reimburse_detail_relevance t2 on t1.code = t2.reimburseCode set t1.remain_fee_amount = " +
+                   "t1.remain_fee_amount + t2.amount where t2.batchNo = '{0}' and t2.reimburseCode = '{1}';", batchNo, tempCode);
+                }
+                else
+                {
+                    DataTable tempDt = SqlHelper.Find(string.Format("select fee_amount, remain_fee_amount from yl_reimburse where code = '{0}'", tempCode)).Tables[0];
+
+                    double fee_amount = double.Parse(tempDt.Rows[0][0].ToString());
+                    double remain_fee_amount = double.Parse(tempDt.Rows[0][1].ToString());
+
+                    if ((fee_amount - remain_fee_amount) >= totalReceiptAmount)
+                    {
+                        _sql += string.Format("update yl_reimburse set remain_fee_amount = remain_fee_amount + {0} where code = '{1}'", totalReceiptAmount, tempCode);
+                        break;
+                    }
+                    else
+                    {
+                        _sql += string.Format("update yl_reimburse set remain_fee_amount = fee_amount where code = '{0}'", tempCode);
+                        totalReceiptAmount -= fee_amount - remain_fee_amount;
+                    }
+                }
             }
 
-            SqlHelper.Exce(sql);
+            SqlHelper.Exce(_sql);
 
             WxNetSalesHelper wxNetSalesHelper = new WxNetSalesHelper("v5afj_CYpboe-JWNOrCU0Cy-xP5krFq6cWYM9KZfe4o", "发票上报", "1000020");
 
-            DataTable dt = SqlHelper.Find(string.Format("select t2.wechatUserId from yl_reimburse t1 left join users t2 on t1.name = t2.userName " +
+            dt = SqlHelper.Find(string.Format("select t2.wechatUserId from yl_reimburse t1 left join users t2 on t1.name = t2.userName " +
                 "where '{0}' like concat('%', t1.code, '%') limit 1", code)).Tables[0];
             //// 给提交人发送消息
             wxNetSalesHelper.GetJsonAndSendWxMsg(dt.Rows[0][0].ToString(), "您的发票信息已被审批拒绝，审批人为: " + user.userName + ",拒绝理由为:" + opinion + ",请尽快重新提交。", "http://yelioa.top//mMySubmittedReimburseDetail.aspx", "1000020");
@@ -235,5 +279,21 @@ public partial class mApprovalReimburseDetail : System.Web.UI.Page
         }
 
         return result.ToString();
+    }
+
+    private string getSalesOrNotSales()
+    {
+        string userId = Request.Form["userId"];
+
+        string sql = string.Format("select department from v_user_department_post where userId = '{0}'", userId);
+
+        string departmentName = SqlHelper.Find(sql).Tables[0].Rows[0][0].ToString();
+
+        JObject jobject = new JObject
+        {
+            { "name", departmentName },
+        };
+
+        return jobject.ToString();
     }
 }

@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.28803.352
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{E24C65DC-7377-472B-9ABA-BC803B73C61A}") = "yelioa", ".", "{42960D7D-BF14-4363-A5CD-6D7088A6ABED}"
+Project("{E24C65DC-7377-472B-9ABA-BC803B73C61A}") = "YeliOA", "..\YeliOA", "{42960D7D-BF14-4363-A5CD-6D7088A6ABED}"
 	ProjectSection(WebsiteProperties) = preProject
 		SccProjectName = "Svn"
 		SccAuxPath = "Svn"
@@ -11,15 +11,15 @@ Project("{E24C65DC-7377-472B-9ABA-BC803B73C61A}") = "yelioa", ".", "{42960D7D-BF
 		SccProvider = "SubversionScc"
 		TargetFrameworkMoniker = ".NETFramework,Version%3Dv3.5"
 		Debug.AspNetCompiler.VirtualPath = "/localhost_55153"
-		Debug.AspNetCompiler.PhysicalPath = "..\yelioa\"
-		Debug.AspNetCompiler.TargetPath = "localhost_55153\"
+		Debug.AspNetCompiler.PhysicalPath = "..\YeliOA\"
+		Debug.AspNetCompiler.TargetPath = "PrecompiledWeb\localhost_55153\"
 		Debug.AspNetCompiler.Updateable = "true"
 		Debug.AspNetCompiler.ForceOverwrite = "true"
 		Debug.AspNetCompiler.FixedNames = "false"
 		Debug.AspNetCompiler.Debug = "True"
 		Release.AspNetCompiler.VirtualPath = "/localhost_55153"
-		Release.AspNetCompiler.PhysicalPath = "..\yelioa\"
-		Release.AspNetCompiler.TargetPath = "localhost_55153\"
+		Release.AspNetCompiler.PhysicalPath = "..\YeliOA\"
+		Release.AspNetCompiler.TargetPath = "PrecompiledWeb\localhost_55153\"
 		Release.AspNetCompiler.Updateable = "true"
 		Release.AspNetCompiler.ForceOverwrite = "true"
 		Release.AspNetCompiler.FixedNames = "false"

@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json.Linq;
+﻿ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -40,6 +40,11 @@ public partial class mMySubmittedReimburse : System.Web.UI.Page
                 //Response.Write(DownloadExcel());
                 DownloadExcel();
             }
+            else if (action == "getStatistics")
+            {
+                Response.Write(getStatistics());
+            }
+
             Response.End();
         }
     }
@@ -48,12 +53,13 @@ public partial class mMySubmittedReimburse : System.Web.UI.Page
         string sort = Request.Form["sort"];
         string order = Request.Form["order"];
         string keyword = Request.Form["keyword"];
-
+        int year = Convert.ToInt32(Request.Form["year"]);
+        int month = Convert.ToInt32(Request.Form["month"]);
         string res = "F";
         UserInfo user = (UserInfo)Session["user"];
         if (user != null)
         {
-            DataSet ds = ReimbursementManage.GetInfos(user.userName, keyword);
+            DataSet ds = ReimbursementManage.GetInfos(user.userName, keyword, year, month);
             if (ds != null && ds.Tables[0].Rows.Count > 0)
             {
                 DataTable dt = PinYinHelper.SortByPinYin(ds.Tables[0], sort, order);
@@ -138,16 +144,25 @@ public partial class mMySubmittedReimburse : System.Web.UI.Page
         UserInfo user = (UserInfo)Session["user"];
         JObject res = new JObject();
         string date =  Request.Form["date"];
-        DateTime dateStart = Convert.ToDateTime(date + "-01");
+        string company = Request.Form["company"];
+        DateTime dateStart = Convert.ToDateTime(date + "-4");
         DateTime dateEnd = dateStart.AddMonths(1);
+        dateEnd = dateEnd.AddDays(0);
+        //dateEnd = dateEnd.AddDays(-6);
         //string[] dates = date.Split('-');
         //int year = Convert.ToInt32(dates[0]);
         //int month = Convert.ToInt32(dates[1]);
         string msg = "";
         string sql = string.Format("select * from v_user_department_post where userId={0}\r\n;", user.userId);
-        sql += string.Format("SELECT r.*, rd.* FROM yl_reimburse AS r RIGHT JOIN yl_reimburse_detail AS rd ON rd.Code LIKE concat('%', r.code, '%')" +
-          " where (rd.ActivityDate between '{0}' and '{1}') and (rd.Status='同意' and r.status='已审批' and r.account_result='同意') and r.name='{2}' ORDER BY r.code ASC"
-          , dateStart.ToString("yyyy-MM-dd"),dateEnd.ToString("yyyy-MM-dd"),user.userName);
+        sql += string.Format("SELECT r.*, rd.*,group_concat(r.project) concatProject FROM (select * from yl_reimburse where status='已审批'and name='{2}' " +
+            " and fee_company='{3}') AS r inner JOIN yl_reimburse_detail AS rd ON rd.Code LIKE concat('%', r.code, '%')" +
+          " where (rd.CreateTime between '{0} 00:00:00' and '{1} 23:59:59') and (rd.Status='同意' and r.status='已审批') and r.name='{2}' group by rd.id,rd.code ORDER BY r.code ASC"
+          , dateStart.ToString("yyyy-MM-dd"), dateEnd.ToString("yyyy-MM-dd"), user.userName,company);
+
+        //sql += string.Format("SELECT r.*, rd.* FROM yl_reimburse AS r RIGHT JOIN yl_reimburse_detail AS rd ON rd.Code LIKE concat('%', r.code, '%')" +
+        //  " where (rd.CreateTime between '{0}' and '{1}') and (rd.Status='同意' and r.status='已审批' and r.account_result='同意') and r.name='{2}' ORDER BY r.code ASC"
+        //  , dateStart.ToString("yyyy-MM-dd"), dateEnd.ToString("yyyy-MM-dd"), user.userName);
+
         DataSet ds = SqlHelper.Find(sql, ref msg);
 
         if(ds == null)
@@ -174,7 +189,7 @@ public partial class mMySubmittedReimburse : System.Web.UI.Page
 
         Dictionary<string, object> UserInfo = new Dictionary<string, object>();
         UserInfo.Add("user", user);
-        UserInfo.Add("depart", ds.Tables[0].Rows[0]["department"].ToString());
+        UserInfo.Add("depart", ds.Tables[0].Rows[0]["department"].ToString().Replace("东森家园/",""));
         UserInfo.Add("dateStart", dateStart);
         UserInfo.Add("dateEnd", dateEnd);
 
@@ -182,7 +197,7 @@ public partial class mMySubmittedReimburse : System.Web.UI.Page
         if (IsSalesMan)
         {
             fileName = string.Format("营销中心费用报销新套表-{0}{1}", user.userName, dateStart.ToString("yyyyMM"));
-            string path = Server.MapPath("~/Template/营销中心费用报销新套表-.xls");
+            string path = Server.MapPath("~/Template/营销中心费用报销新套表.xls");
             dtVal = CreateSalesmanReimbursementSlipCoverDetailValue(ds.Tables[1], ref UserInfo);
             if(dtVal.Rows.Count > 15)
             {
@@ -229,12 +244,12 @@ public partial class mMySubmittedReimburse : System.Web.UI.Page
         else
         {
             fileName = string.Format("职能线费用报销套表-{0}{1}", user.userName, dateStart.ToString("yyyyMM"));
-            string path = Server.MapPath("~/Template/职能线费用报销套表-.xls");
+            string path = Server.MapPath("~/Template/职能线费用报销套表.xls");
             //data = ExcelHelperV2_0.EditNoSalesmanExcel(ds.Tables[1], ref msg, path, UserInfo);
             dtVal = CreateNoSalesmanReimbursementSlipCoverDetailValue(ds.Tables[1], ref UserInfo);
             if (dtVal.Rows.Count > 15)
             {
-                data = ExcelHelperV2_0.EditSalesmanExcel(GetRowsFromDataTable(dtVal, 0, 14), ref msg, path, UserInfo);
+                data = ExcelHelperV2_0.EditNoSalesmanExcel(GetRowsFromDataTable(dtVal, 0, 14), ref msg, path, UserInfo);
                 string filecode = ValideCodeHelper.GetRandomCode(64);
                 string newPath = Server.MapPath("~/tempExportFile");
                 newPath = newPath + @"\" + filecode + ".xls";
@@ -332,25 +347,57 @@ public partial class mMySubmittedReimburse : System.Web.UI.Page
 
     private DataTable CreateNoSalesmanReimbursementSlipCoverDetailValue(DataTable dt, ref Dictionary<string, object> dictInfo)
     {
+        double advancePayment = 0.0;//预付款
+        double advancePayment2 = 0.0;//预付款
+        double tax = 0.0;
+        double tax2 = 0.0;
         DateTime dateStart = (DateTime)dictInfo["dateStart"];
         DateTime dateEnd = (DateTime)dictInfo["dateEnd"];
         DataRow[] rows = dt.Select(string.Format("fee_detail like '%岗位补贴%'"));
         double TrafficFee = 0;
+        double MealFee = 0;
+        UserInfo user = (UserInfo)Session["user"];
+
         foreach (DataRow dtRow in rows)
         {
             if (dtRow["ReceiptType"].ToString() == "交通费")
             {
                 TrafficFee += Convert.ToDouble(dtRow["ReceiptAmount"]);
             }
+            else if(((user.userName == "李茂龙" ) && dtRow["ReceiptType"].ToString() == "业务招待费"))
+            {
+                MealFee += Convert.ToDouble(dtRow["ReceiptAmount"]);
+            }
+            tax += Convert.ToDouble(dtRow["ReceiptTax"]);
         }
         dictInfo.Add("交通费", TrafficFee);
+        if(MealFee>0)
+            dictInfo.Add("业务招待费", MealFee);
+
+        List<string> listProject = new List<string>();
+        List<string> listActivityDay = new List<string>();
+        foreach (DataRow r in dt.Rows)
+        {
+            if (r["ReceiptType"].ToString() == "实报实销")
+            {
+                r["ReceiptType"] = "出差补贴";
+            }
+            string val = GetProjectNumberFromFeeDetail(r["fee_detail"].ToString());
+            if (!listProject.Contains(val))
+                listProject.Add(val);
+            val = r["ActivityDate"].ToString();
+            DateTime date = Convert.ToDateTime(val);
+            val = date.ToString("yyyy-MM-dd");
+            if (!listActivityDay.Contains(val))
+                listActivityDay.Add(val);
+        }
+        listActivityDay.Sort();
 
         //填入具体单据内容
+        int currentDay = dateStart.AddMonths(1).AddDays(-1).Day;
+
         int len = dateEnd.AddDays(-1).Day;
-        double advancePayment = 0.0;//预付款
-        double advancePayment2 = 0.0;//预付款
-        double tax = 0.0;
-        double tax2 = 0.0;
+        
         DataTable dtVal = new DataTable();
         dtVal.Columns.Add("date", typeof(string));
         dtVal.Columns.Add("地点", typeof(string));
@@ -381,17 +428,25 @@ public partial class mMySubmittedReimburse : System.Web.UI.Page
         dtVal.Columns.Add("其他", typeof(double));
         //dtVal.Columns.Add("核销预付款", typeof(double));
 
-
         //差旅费部分
-        for (int i = 1; i <= len; i++)
+        //for (int i = 1; i <= currentDay + len; i++)
+        foreach(string strDay in listActivityDay)
         {
-            string condition = string.Format("ActivityDate >= #{0}-{1}-{2} 00:00:00# and ActivityDate <= #{0}-{1}-{2} 23:59:59# and fee_detail like '%差旅%'"
-                , dateStart.Year, dateStart.Month, i);
+            DateTime day = Convert.ToDateTime(strDay);
+            string condition = string.Format("ActivityDate >= #{0} 00:00:00# and ActivityDate <= #{0} 23:59:59# and fee_detail like '%差旅%'"
+                , day.ToString("yyyy-MM-dd"));
+
+            //if (i > currentDay)
+            //{
+            //    condition = string.Format("CreateTime >= #{0}-{1}-{2} 00:00:00# and CreateTime <= #{0}-{1}-{2} 23:59:59# and fee_detail like '%差旅%'"
+            //        , dateEnd.Year, dateEnd.Month, i - currentDay);
+            //}
+
             rows = dt.Select(condition);
             if (rows.Length > 0)
             {
                 DataRow newRow = dtVal.NewRow();
-                newRow["date"] = string.Format("{0}-{1}-{2}", dateStart.Year, dateStart.Month, i);
+                newRow["date"] = day.ToString("yyyy-MM-dd");
                 for (int j = 0; j < dtVal.Columns.Count; j++)
                 {
                     if (typeof(double) == dtVal.Columns[j].DataType)
@@ -441,13 +496,7 @@ public partial class mMySubmittedReimburse : System.Web.UI.Page
             }
         }
         //项目部分
-        List<string> listProject = new List<string>();
-        foreach (DataRow r in dt.Rows)
-        {
-            string val = GetProjectNumberFromFeeDetail(r["fee_detail"].ToString());
-            if (!listProject.Contains(val))
-                listProject.Add(val);
-        }
+        
         foreach (string projectNumber in listProject)
         {
             string condition = string.Format("fee_detail like '%{0}%' and fee_detail not like '%差旅%' and fee_detail not like '%岗位补贴%'", projectNumber);
@@ -485,28 +534,34 @@ public partial class mMySubmittedReimburse : System.Web.UI.Page
             }
         }
 
-        if (advancePayment > 0)
+        //if (advancePayment > 0)
             dictInfo.Add("核销预付款", advancePayment);
-        if (advancePayment2 > 0)
+        //if (advancePayment2 > 0)
             dictInfo.Add("核销预付款2", advancePayment2);
-        if (tax > 0)
+        //if (tax > 0)
             dictInfo.Add("税金", tax);
-        if (tax2 > 0)
+        //if (tax2 > 0)
             dictInfo.Add("税金2", tax2);
         return dtVal;
     }
 
     private DataTable CreateSalesmanReimbursementSlipCoverDetailValue(DataTable dt,ref Dictionary<string, object> dictInfo)
     {
+        double advancePayment = 0.0;//预付款
+        double advancePayment2 = 0.0;//预付款
+        double tax = 0.0;
+        double tax2 = 0.0;
         DateTime dateStart = (DateTime)dictInfo["dateStart"];
         DateTime dateEnd = (DateTime)dictInfo["dateEnd"];
+        UserInfo user = (UserInfo)Session["user"];
 
         DataRow[] rows = dt.Select(string.Format("fee_detail like '%岗位补贴%'"));
         double MealsFee = 0;
         double TrafficFee = 0;
         foreach (DataRow dtRow in rows)
         {
-            if (dtRow["ReceiptType"].ToString() == "餐费")
+            if (dtRow["ReceiptType"].ToString() == "餐费" || 
+                ((user.userName=="黄文俊"|| user.userName == "付玉林")&& dtRow["ReceiptType"].ToString() == "业务招待费"))
             {
                 MealsFee += Convert.ToDouble(dtRow["ReceiptAmount"]);
             }
@@ -514,16 +569,30 @@ public partial class mMySubmittedReimburse : System.Web.UI.Page
             {
                 TrafficFee += Convert.ToDouble(dtRow["ReceiptAmount"]);
             }
+            tax += Convert.ToDouble(dtRow["ReceiptTax"]);
         }
-        dictInfo.Add("餐费", MealsFee);
+
+        List<string> listActivityDay = new List<string>();
+        foreach (DataRow dtRow in dt.Rows)
+        {
+            if (dtRow["ReceiptType"].ToString() == "实报实销")
+            {
+                dtRow["ReceiptType"] = "出差补贴";
+            }
+            string val = dtRow["ActivityDate"].ToString();
+            DateTime date = Convert.ToDateTime(val);
+            val = date.ToString("yyyy-MM-dd");
+            if (!listActivityDay.Contains(val))
+                listActivityDay.Add(val);
+        }
+        listActivityDay.Sort();
+         dictInfo.Add("餐费", MealsFee);
         dictInfo.Add("市内交通费", TrafficFee);
 
         //填入具体单据内容
+        int currentDay = dateStart.AddMonths(1).AddDays(-1).Day;
+
         int len = dateEnd.AddDays(-1).Day;
-        double advancePayment = 0.0;//预付款
-        double advancePayment2 = 0.0;//预付款
-        double tax = 0.0;
-        double tax2 = 0.0;
         DataTable dtVal = new DataTable();
         dtVal.Columns.Add("date", typeof(string));
         dtVal.Columns.Add("地点", typeof(string));
@@ -549,14 +618,25 @@ public partial class mMySubmittedReimburse : System.Web.UI.Page
         dtVal.Columns.Add("学术会费", typeof(double));
         dtVal.Columns.Add("营销办公费", typeof(double));
         //dtVal.Columns.Add("核销预付款", typeof(double));
-        for (int i = 1; i <= len; i++)
+        //for (int i = 1; i <= len + currentDay; i++)
+        foreach(string strDay in listActivityDay)
         {
-            string condition = string.Format("ActivityDate >= #{0}-{1}-{2} 00:00:00# and ActivityDate <= #{0}-{1}-{2} 23:59:59#", dateStart.Year, dateStart.Month, i);
+            DateTime day = Convert.ToDateTime(strDay);
+            string condition = string.Format("ActivityDate >= #{0} 00:00:00# and ActivityDate <= #{0} 23:59:59#"
+                + " and (ReceiptType not in ('市内交通费'))", day.ToString("yyyy-MM-dd"));
+
+            //if (i > currentDay)
+            //{
+            //    condition = string.Format("CreateTime >= #{0}-{1}-{2} 00:00:00# and CreateTime <= #{0}-{1}-{2} 23:59:59# and fee_detail like '%差旅%'"
+            //        , dateEnd.Year, dateEnd.Month, i - currentDay);
+            //}
+
             rows = dt.Select(condition);
             if (rows.Length > 0)
             {
+                bool bNewRowNeededToBeInsert = false;
                 DataRow newRow = dtVal.NewRow();
-                newRow["date"] = string.Format("{0}-{1}-{2}", dateStart.Year, dateStart.Month, i);
+                newRow["date"] = day.ToString("yyyy-MM-dd");
                 for (int j = 0; j < dtVal.Columns.Count; j++)
                 {
                     if (typeof(double) == dtVal.Columns[j].DataType)
@@ -573,38 +653,62 @@ public partial class mMySubmittedReimburse : System.Web.UI.Page
                     {
                         list.Add(dtRow["id"].ToString());
 
-                        bool isRepeatDesc = false;
+                        
+                    }
+                    bool isRepeatDesc = false;
+                    string ReceiptType = dtRow["ReceiptType"].ToString();
+                    if ( dtRow["fee_detail"].ToString().Contains("岗位补贴"))
+                    {
+                        continue;
+                    }
+                    bNewRowNeededToBeInsert = true;
+                    if (string.IsNullOrEmpty(oldReceiptDesc) || oldReceiptDesc != dtRow["receiptDesc"].ToString())
+                    {
+                        oldReceiptDesc = dtRow["receiptDesc"].ToString();
+                        isRepeatDesc = false;
+                    }
+                    else
+                        isRepeatDesc = true;
 
-                        if (string.IsNullOrEmpty(oldReceiptDesc) || oldReceiptDesc != dtRow["receiptDesc"].ToString())
+                    if (!dtRow["fee_detail"].ToString().Contains("推广活动") && !dtRow["fee_detail"].ToString().Contains("区域日常"))
+                    {
+                        if (!string.IsNullOrEmpty(dtRow["remark"].ToString()) && !isRepeatDesc)
                         {
-                            oldReceiptDesc = dtRow["receiptDesc"].ToString();
-                            isRepeatDesc = false;
+                            newRow["出差内容描述"] = AddString(newRow["出差内容描述"].ToString(), dtRow["receiptDesc"].ToString());
+                            //newRow["出差内容描述"] = newRow["出差内容描述"].ToString() + ",\r\n" +
+                            //    SqlHelper.DesDecrypt(dtRow["remark"].ToString());
                         }
-                        else
-                            isRepeatDesc = true;
-
-                        if (dtRow["project"].ToString().Equals("请选择") && !dtRow["fee_detail"].ToString().Contains("区域日常"))
+                        if (!string.IsNullOrEmpty(dtRow["ReceiptPlace"].ToString()))
                         {
-                            if (!string.IsNullOrEmpty(dtRow["remark"].ToString()) && !isRepeatDesc)
-                            {
-                                newRow["出差内容描述"] = AddString(newRow["出差内容描述"].ToString(),dtRow["receiptDesc"].ToString());
-                                //newRow["出差内容描述"] = newRow["出差内容描述"].ToString() + ",\r\n" +
-                                //    SqlHelper.DesDecrypt(dtRow["remark"].ToString());
-                            }
-                            if (!string.IsNullOrEmpty(dtRow["ReceiptPlace"].ToString()))
-                            {
-                                newRow["地点"] = AddString(newRow["地点"].ToString(), dtRow["ReceiptPlace"].ToString())  ;
-                            }
-                        }
-                        else
-                        {
-                            newRow["活动申请编号"] = AddString(newRow["活动申请编号"].ToString(), dtRow["project"].ToString())   ;
-                            if (!string.IsNullOrEmpty(dtRow["remark"].ToString()) && !isRepeatDesc)
-                                newRow["活动内容描述"] = AddString(newRow["活动内容描述"].ToString(),
-                                    dtRow["receiptDesc"].ToString())  ;
+                            newRow["地点"] = AddString(newRow["地点"].ToString(), dtRow["ReceiptPlace"].ToString());
                         }
                     }
-                    string ReceiptType = dtRow["ReceiptType"].ToString();
+                    else
+                    {
+                        //if(!dtRow["project"].ToString().Equals("请选择"))
+                        //    newRow["活动申请编号"] = AddString(newRow["活动申请编号"].ToString(), dtRow["project"].ToString())   ;
+                        if (!string.IsNullOrEmpty(dtRow["concatProject"].ToString()))
+                        {
+                            string[] strs = dtRow["concatProject"].ToString().Split(',');
+                            string val = "";
+                            foreach (string str in strs)
+                            {
+                                if (str.Equals("请选择"))
+                                { continue; }
+                                else
+                                {
+                                    val += str + ",\r\n";
+                                }
+                            }
+                            if (!string.IsNullOrEmpty(val))
+                                val = val.Substring(0, val.Length - 3);
+                            newRow["活动申请编号"] = AddString(newRow["活动申请编号"].ToString(), val);
+                        }
+                        if (!string.IsNullOrEmpty(dtRow["remark"].ToString()) && !isRepeatDesc)
+                            newRow["活动内容描述"] = AddString(newRow["活动内容描述"].ToString(),
+                                dtRow["receiptDesc"].ToString());
+                    }
+                    
                  
                     for (int j = 0; j < dtVal.Columns.Count; j++)
                     {
@@ -631,16 +735,17 @@ public partial class mMySubmittedReimburse : System.Web.UI.Page
                     else
                         tax2 += Convert.ToDouble(dtRow["ReceiptTax"]);
                 }
-                dtVal.Rows.Add(newRow);
+                if(bNewRowNeededToBeInsert)
+                    dtVal.Rows.Add(newRow);
             }            
         }
-        if (advancePayment > 0)
+        //if (advancePayment > 0)
             dictInfo.Add("核销预付款", advancePayment);
-        if (advancePayment2 > 0)
+        //if (advancePayment2 > 0)
             dictInfo.Add("核销预付款2", advancePayment2);
-        if (tax > 0)
+        //if (tax > 0)
             dictInfo.Add("税金", tax);
-        if (tax2 > 0)
+        //if (tax2 > 0)
             dictInfo.Add("税金2", tax2);
         return dtVal;
     }
@@ -674,5 +779,15 @@ public partial class mMySubmittedReimburse : System.Web.UI.Page
             else
                 return vals[0];
         }
+    }
+
+    private string getStatistics()
+    {
+        string type = Request.Form["type"];
+        int year = Convert.ToInt32(Request.Form["year"]);
+        int month = Convert.ToInt32(Request.Form["month"]);
+        UserInfo user = (UserInfo)Session["user"];
+
+        return MobileReimburseManage.accountSelfStatistics(user.userName.ToString(), year, month, type);
     }
 }

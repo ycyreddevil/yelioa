@@ -28,9 +28,18 @@
             <van-icon name="filter-o" slot="right" size="20px"/>
         </van-nav-bar>
         <van-loading v-show="loading" size="24px" style="padding-top:100px" vertical>数据加载中，请稍等</van-loading>
+        <form action="/">
+          <van-search
+            v-model="keyword"
+            placeholder="请输入提交人或金额进行搜索"
+            show-action
+            @search="onSearch"
+            @cancel="onCancel"
+          ></van-search>
+        </form>
         <div v-if="list.length > 0">
             <mu-list dense v-for="temp in list">
-                <mu-list-item avatar :ripple="false" button @click="showDetail(temp.BatchNo, temp.Code)">
+                <mu-list-item avatar :ripple="false" button @click="showDetail(temp.BatchNo, temp.Code, temp.userId)">
                 <mu-list-item-action>
                   <mu-avatar>
                     <img :src="temp.avatar">
@@ -53,7 +62,7 @@
         </div>
         <!--日期选择弹出框-->
         <van-popup v-model="isShowDate" position="bottom">
-            <van-datetime-picker v-model="chooseDate" @confirm="confirmDate" type="date" :formatter="formatter"></van-datetime-picker>
+            <van-datetime-picker v-model="chooseDate" @confirm="confirmDate" type="year-month" :formatter="formatter"></van-datetime-picker>
         </van-popup>
         <!--图片预览-->
         <van-image-preview
@@ -99,7 +108,7 @@
               <van-collapse-item title="发票明细" name="3">
                   <mu-paper class="demo-paper" :z-depth="1" style="margin:10px" v-for="(temp,index) in receiptList">
                     <van-cell-group>
-                        <van-image
+                        <van-image v-show="temp.ReceiptAttachment !== ''"
                             width="100"
                             height="100"
                             fit="cover"
@@ -108,16 +117,17 @@
                             @click="isImagePreviewShow = true;imageList = [];imageList.push(temp.ReceiptAttachment)">
                             <template v-slot:error>加载失败</template>
                         </van-image>
-                        <van-field label="发票用途" v-model="temp.ReceiptType"></van-field>
-                        <van-field v-show="temp.ReceiptType != '出差补贴'" v-model="temp.ReceiptDate" label="发票日期"></van-field>
+                        <van-field label="发票用途" v-model="temp.ReceiptType == '实报实销' ? '出差补贴' : temp.ReceiptType" @click="showReimburseType(index)"></van-field>
+                        <van-field v-show="temp.ReceiptType == '隐藏该项'" v-model="temp.ReceiptDate" label="发票日期"></van-field>
                         <van-field v-model="temp.ActivityDate" label="费用产生日期"></van-field>
                         <van-field v-model="temp.ActivityEndDate" label="费用结束日期"></van-field>
-                        <van-field v-show="temp.ReceiptType != '出差补贴'" v-model="temp.ReceiptCode"  label="发票编码"></van-field>
-                        <van-field v-show="temp.ReceiptType != '出差补贴'" v-model="temp.ReceiptNum" label="发票号码"></van-field>
-                        <van-field type="number" v-model="temp.ReceiptAmount" label="发票金额"></van-field>
-                        <van-field v-model="temp.ReceiptPerson" label="发票人"></van-field>
-                        <van-field v-model="temp.RelativePerson" label="同行人"></van-field>
-                        <van-field v-show="temp.ReceiptType != '出差补贴'" type="number" v-model="temp.ReceiptTax" label="发票税额"></van-field>
+                        <van-field v-show="temp.ReceiptType != '实报实销'" v-model="temp.ReceiptCode"  label="发票编码"></van-field>
+                        <van-field v-show="temp.ReceiptType != '实报实销'" v-model="temp.ReceiptNum" label="发票号码"></van-field>
+                        <van-field type="number" v-model="temp.ReceiptAmount" label="发票金额" readonly></van-field>
+                        <van-field v-show="temp.SellerRegisterNum != ''" v-model="temp.SellerRegisterNum" label="税号"></van-field>
+                        <van-field v-show="temp.ReceiptType != '实报实销'" v-model="temp.ReceiptPerson" label="发票人"></van-field>
+                        <van-field v-show="temp.ReceiptType != '实报实销'" v-model="temp.RelativePerson" label="同行人"></van-field>
+                        <van-field v-show="temp.ReceiptType != '实报实销'" type="number" v-model="temp.ReceiptTax" label="发票税额"></van-field>
                         <van-field v-model="temp.ReceiptPlace" label="发票地点"></van-field>
                         <van-field v-model="temp.ReceiptDesc" type="textarea" label="活动内容描述"></van-field>
                     </van-cell-group>
@@ -176,6 +186,20 @@
           @confirm="disagree">
           <van-field border type="textarea" label="拒绝理由" v-model="opinion"></van-field>
         </van-dialog>
+        <!--选择发票用途弹出框-->
+        <van-popup v-model="isShowReimburseType" position="right">
+            <van-list
+              :finished="finished"
+              finished-text="没有更多了">
+              <van-cell
+                v-for="temp in reimburseTypeList"
+                clickable
+                :key="temp"
+                :title="temp"
+                @click="chooseReimburseType(temp)"
+              />
+            </van-list>
+        </van-popup>
     </div>
 </body>
 <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.min.js"></script>
@@ -200,9 +224,13 @@
         })
     }
 
+    const salesReimburseDetail = ["出差车船费","住宿费","出差补贴","餐费", "市内交通费", "会议费", "培训费", "办公用品", "工作餐", "场地费", "招待餐费", "纪念品", "外协劳务", "外部人员机票/火车票", "外部人员住宿费", "外部人员交通费", "学术会费", "营销办公费"]
+    const notSalesReimburseDetail = ["出差车船费","住宿费", "出差补贴","交通费", "汽车使用费","业务招待费", "培训费", "办公费", "租赁费", "劳保费", "通讯费", "福利费", "物业费", "水电费", "招聘费", "运输费", "材料费", "试验费", "检测费", "专利费", "注册费", "服务费", "其他"]
+
     var vue = new Vue({
         el: '#title',
         data: {
+            keyword: '',
             list: [],
             loading: true,
             isShowDate: false,
@@ -217,7 +245,12 @@
             chooseCode: '',
             chooseBatchNo: '',
             disagreeDialog: false,
-            opinion: ''
+            opinion: '',
+            isShowReimburseType: false,
+            reimburseTypeList: [],
+            clickIndex: 0,
+            finished: true,
+            chooseUserId: 0
         },
         methods: {
             refresh() {
@@ -228,9 +261,9 @@
             },
             confirmDate(date) {
                 this.isShowDate = false
-                this.chooseDate = date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate()
+                this.chooseDate = date.getFullYear() + '-' + (date.getMonth() + 1) + '-01'
                 this.loading = true
-                web({ action: 'getList', date: this.chooseDate }).then(res => {
+                web({ action: 'getList', date: this.chooseDate, keyword: this.keyword }).then(res => {
                     this.list = res.data
                     this.loading = false
                     this.chooseDate = new Date()
@@ -245,9 +278,10 @@
                     return `${value}日`
                 }
             },
-            showDetail(batchNo,code) {
+            showDetail(batchNo,code, userId) {
                 this.chooseCode = code
                 this.chooseBatchNo = batchNo
+                this.chooseUserId = userId
                 //this.imageList = []
                 this.isShowDetail = true
                 web({ action: 'getDetail', batchNo: batchNo, code: code }).then(res => {
@@ -309,7 +343,35 @@
             },
             goBack(){
                 this.isShowDetail = false
-            }
+            },
+            onSearch() {
+                web({ action: 'getList', date: this.chooseDate, keyword: this.keyword }).then(res => {
+                    this.list = res.data
+                    this.loading = false
+                    //this.chooseDate = new Date().toString('yyyy-MM-dd')
+                })
+            },
+            onCancel() {
+                web({ action: 'getList', date: this.chooseDate }).then(res => {
+                    this.list = res.data
+                    this.loading = false
+                    //this.chooseDate = new Date().toString('yyyy-MM-dd')
+                })
+            },
+            chooseReimburseType(data) {
+                this.isShowReimburseType = false
+                this.receiptList[this.clickIndex]["ReceiptType"] = data
+            },
+            showReimburseType(index) {
+                this.clickIndex = index
+                this.isShowReimburseType = true
+                web({action: 'getSalesOrNotSales', userId: this.chooseUserId}).then(res => {
+                    if (res.data.name.indexOf('营销中心') > -1)
+                        this.reimburseTypeList = salesReimburseDetail
+                    else
+                        this.reimburseTypeList = notSalesReimburseDetail
+                })
+            },
         },
         destroyed(){
             window.removeEventListener('popstate', this.goBack, false);

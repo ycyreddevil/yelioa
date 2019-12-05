@@ -30,7 +30,7 @@
         <van-loading v-show="loading" size="24px" style="padding-top:100px" vertical>数据加载中，请稍等</van-loading>
         <div v-if="list.length > 0">
             <mu-list dense v-for="temp in list">
-                <mu-list-item avatar :ripple="false" button @click="showDetail(temp.BatchNo)">
+                <mu-list-item avatar :ripple="false" button @click="showDetail(temp.BatchNo, temp.Code)">
                 <mu-list-item-action>
                   <mu-avatar>
                     <img :src="temp.avatar">
@@ -46,6 +46,7 @@
                     <mu-list-item-after-text v-if="temp.Status == '拒绝'" style="color: orangered">{{temp.Status}}</mu-list-item-after-text>
                     <mu-list-item-after-text v-else-if="temp.Status == '同意'" style="color: limegreen">{{temp.Status}}</mu-list-item-after-text>
                     <mu-list-item-after-text v-else>{{temp.Status}}</mu-list-item-after-text>
+                    <mu-list-item-after-text v-show="temp.Status == '拒绝'" style="color: orangered">拒绝理由:{{temp.Opinion}}</mu-list-item-after-text>
                 </mu-list-item-action>
               </mu-list-item>
             </mu-list>
@@ -64,7 +65,7 @@
             <van-divider>发票明细</van-divider>
             <mu-paper class="demo-paper" :z-depth="1" style="margin:10px" v-for="(temp,index) in receiptList">
                 <van-cell-group>
-                    <van-image
+                    <van-image v-show="temp.ReceiptAttachment !== ''"
                         width="100"
                         height="100"
                         fit="cover"
@@ -73,22 +74,25 @@
                         @click="isImagePreviewShow = true; imageList = []; imageList.push(temp.ReceiptAttachment)">
                         <template v-slot:error>加载失败</template>
                     </van-image>
-                    <van-field readonly label="发票用途" v-model="temp.ReceiptType"></van-field>
-                    <van-field v-show="temp.ReceiptType != '出差补贴'" v-model="temp.ReceiptDate" readonly label="发票日期"></van-field>
+                    <van-field readonly label="发票用途" v-model="temp.ReceiptType == '实报实销' ? '出差补贴' : temp.ReceiptType"></van-field>
+                    <van-field v-show="temp.ReceiptType == '隐藏该项'" v-model="temp.ReceiptDate" readonly label="发票日期"></van-field>
                     <van-field v-model="temp.ActivityDate" readonly label="费用发生日期"></van-field>
                     <van-field v-model="temp.ActivityEndDate" readonly label="费用结束日期"></van-field>
-                    <van-field v-show="temp.ReceiptType != '出差补贴'" v-model="temp.ReceiptCode"  readonly label="发票编码"></van-field>
-                    <van-field v-show="temp.ReceiptType != '出差补贴'" v-model="temp.ReceiptNum" readonly label="发票号码"></van-field>
+                    <van-field v-show="temp.ReceiptType != '实报实销'" v-model="temp.ReceiptCode"  readonly label="发票编码"></van-field>
+                    <van-field v-show="temp.ReceiptType != '实报实销'" v-model="temp.ReceiptNum" readonly label="发票号码"></van-field>
                     <van-field type="number" v-model="temp.ReceiptAmount" readonly label="发票金额"></van-field>
-                    <van-field v-model="temp.ReceiptPerson" readonly label="发票人"></van-field>
-                    <van-field v-model="temp.RelativePerson" readonly label="同行人"></van-field>
-                    <van-field v-show="temp.ReceiptType != '出差补贴'" type="number" v-model="temp.ReceiptTax" readonly label="发票税额"></van-field>
+                    <van-field v-show="temp.ReceiptType != '实报实销'" v-model="temp.ReceiptPerson" readonly label="发票人"></van-field>
+                    <van-field v-show="temp.ReceiptType != '实报实销'" v-model="temp.RelativePerson" readonly label="同行人"></van-field>
+                    <van-field v-show="temp.ReceiptType != '实报实销'" type="number" v-model="temp.ReceiptTax" readonly label="发票税额"></van-field>
                     <van-field v-model="temp.ReceiptPlace" readonly label="发票地点"></van-field>
                     <van-field v-model="temp.ReceiptDesc" type="textarea" readonly label="活动内容描述"></van-field>
                 </van-cell-group>
             </mu-paper>
-            <van-row type="flex" justify="space-around" style="padding-top:10px" v-show="isReSubmit">
-                <van-col span="10"><van-button size="large" type="info" @click="reSubmit">重新提交</van-button></van-col>
+            <van-row type="flex" justify="space-around" style="padding-top:10px">
+                <van-col span="10">
+                    <van-button v-if="isReSubmit === 1" size="large" type="info" @click="reSubmit">重新提交</van-button>
+                    <van-button v-else-if="isReSubmit === 2" size="large" type="info" @click="reEdit">重新编辑</van-button>
+                </van-col>
             </van-row>
         </van-popup>
         <!--图片预览-->
@@ -101,7 +105,7 @@
         </van-image-preview>
         <!--日期选择弹出框-->
         <van-popup v-model="isShowDate" position="bottom">
-            <van-datetime-picker v-model="chooseDate" @confirm="confirmDate" type="date" :formatter="formatter"></van-datetime-picker>
+            <van-datetime-picker v-model="chooseDate" @confirm="confirmDate" type="year-month" :formatter="formatter"></van-datetime-picker>
         </van-popup>
     </div>
 </body>
@@ -139,20 +143,22 @@
             imageIndex: 0,
             isShowDate: false,
             chooseDate: new Date(),
-            isReSubmit: false,
-            chooseBatchNo: ''
+            isReSubmit: 0,
+            chooseBatchNo: '',
+            chooseReimburseCode: ''
         },
         methods: {
-            showDetail(temp) {
+            showDetail(temp, temp2) {
                 //this.imageList = []
                 this.isShowDetail = true
                 this.chooseBatchNo = temp
+                this.chooseReimburseCode = temp2
                 web({ action: 'getDetail', batchNo: temp }).then(res => {
                     this.receiptList = res.data
                     if (res.data[0].Status === '拒绝')
-                        this.isReSubmit = true
-                    else
-                        this.isReSubmit = false
+                        this.isReSubmit = 1
+                    else if (res.data[0].Status === '已提交')
+                        this.isReSubmit = 2
                     //res.data.forEach((v, i) => {
                     //    if (v.ReceiptAttachment !== '')
                     //        this.imageList.push(v.ReceiptAttachment)
@@ -173,7 +179,7 @@
             },
             confirmDate(date) {
                 this.isShowDate = false
-                this.chooseDate = date.getFullYear() + '-' + (date.getMonth()+1) + '-' + date.getDate()
+                this.chooseDate = date.getFullYear() + '-' + (date.getMonth()+1) + '-01'
                 this.loading = true
                 web({ action: 'getList', date: this.chooseDate }).then(res => {
                     this.list = res.data
@@ -186,8 +192,6 @@
                     return `${value}年`;
                 } else if (type === 'month') {
                     return `${value}月`
-                } else {
-                    return `${value}日`
                 }
             },
             goBack() {
@@ -195,6 +199,11 @@
             },
             reSubmit() {
                 location.href = "mFinanceReimburseDetail.aspx?batchNo=" + this.chooseBatchNo
+            },
+            reEdit() {
+                web({ action: 'reEdit', code: this.chooseReimburseCode, batchNo: this.chooseBatchNo }).then(res => {
+                    location.href = "mFinanceReimburseDetail.aspx?batchNo=" + this.chooseBatchNo
+                })
             }
         },
         destroyed(){

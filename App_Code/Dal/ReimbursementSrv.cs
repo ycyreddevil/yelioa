@@ -18,9 +18,9 @@ public class ReimbursementSrv
         //
     }
 
-    public static DataSet GetInfos(string name, string keyword)
+    public static DataSet GetInfos(string name, string keyword, int year, int month)
     {
-        string sql = string.Format("select * from yl_reimburse where name='{0}'", name);
+        string sql = string.Format("select * from yl_reimburse where name='{0}' and year(lmt) = {1} and month(lmt) = {2}", name, year, month);
         if (!String.IsNullOrEmpty(keyword))
         {
             sql += " and (remark like '%" + keyword + "%' or fee_detail like '%" + keyword + "%' or name like '%" + keyword+ "%')";
@@ -150,9 +150,9 @@ public class ReimbursementSrv
     }
 
     public static DataSet findByCond(string code,string applystarttm,string applyendtm, string starttm, string endtm, string applyName, string depart, string fee_depart, 
-        string fee_detail, string account_status, string status)
+        string fee_detail, string account_status, string status,string sortName,string sortOrder)
     {
-        string sql = "select * from yl_reimburse where 1=1 ";
+        string sql = "select t1.*, t2.receiptAmount from yl_reimburse t1 left join (select reimburseCode,sum(amount) receiptAmount from yl_reimburse_detail_relevance group by reimburseCode) t2 on t1.code = t2.reimburseCode where 1=1 ";
 
         if (code != null)
         {
@@ -194,6 +194,12 @@ public class ReimbursementSrv
         {
             sql += " and ApprovalResult = '" + status + "'";
         }
+        if (!string.IsNullOrEmpty(sortName))
+        {
+            sql += " order by " + sortName + " " + sortOrder + ",code asc";
+        }
+        else
+            sql += " order by code asc";
 
         return SqlHelper.Find(sql);
     }

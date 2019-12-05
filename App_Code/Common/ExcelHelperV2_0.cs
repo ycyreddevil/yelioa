@@ -96,11 +96,18 @@ public class ExcelHelperV2_0
         DataTable table = new DataTable();
 
         IRow headerRow = sheet.GetRow(HeaderRowIndex);
+        IRow headerRow1 = sheet.GetRow(HeaderRowIndex - 1); // 记录上一行表头，用以处理多行表头情况
 
-        int index = 1;
+        int index = 1;  int tempI = 0;
         foreach (ICell cell in headerRow.Cells)
         {
             DataColumn column = new DataColumn(cell.ToString().Trim());
+
+            if (string.IsNullOrEmpty(cell.ToString().Trim()))
+            {
+                column = new DataColumn(headerRow1.Cells[tempI].ToString().Trim());
+            }
+
             if (!table.Columns.Contains(column.ColumnName))
             {
                 table.Columns.Add(column);
@@ -112,16 +119,17 @@ public class ExcelHelperV2_0
 
                 index++;
             }
+            tempI++;
         }
 
         int cellCount = table.Columns.Count;
 
         int rowCount = sheet.LastRowNum;
 
-        for (int i = (sheet.FirstRowNum + 1); i <= rowCount; i++)
+        for (int i = (sheet.FirstRowNum + HeaderRowIndex + 1); i <= rowCount; i++)
         {
             IRow row = sheet.GetRow(i);
-            if (row == null)
+            if (row == null || row.FirstCellNum < 0)
             {
                 continue;
             }
@@ -149,53 +157,10 @@ public class ExcelHelperV2_0
                                 dataRow[j] = null;
                             break;
                         case CellType.Numeric: //数字类型                                   
-                            //if (HSSFDateUtil.IsValidExcelDate(cell.NumericCellValue))
-                            //{
-                            //    dataRow[j] = cell.DateCellValue;
-                            //}
-                            //else
-                            //{
-                            //    dataRow[j] = cell.NumericCellValue;
-                            //}
-                            //short format = cell.CellStyle.DataFormat;
-                            //if (format == 14 || format == 22 || format == 31 || format == 57
-                            // || format == 58 || format == 178 || format == 179)//日期格式
-                            //{
-                            //    DateTime date = cell.DateCellValue;
-                            //    dataRow[j] = date.ToString("yyy-MM-dd HH:mm:ss");
-                            //}
-                            //else if (format == 20 || format == 32)//时间格式
-                            //{
-                            //    DateTime date = cell.DateCellValue;
-                            //    dataRow[j] = date.ToString("HH:mm:ss");
-                            //}
-                            //try
-                            //{
-                            //    dataRow[j] = cell.DateCellValue.ToString("yyy-MM-dd HH:mm:ss");
-                            //}
-                            //catch
-                            //{
-                            //    dataRow[j] = cell.NumericCellValue;
-                            //}
-                            //DateTime date;
-                            //if (DateTime.TryParse(cell.ToString(), out date))
-                            //{
-                                //dataRow[j] = cell.DateCellValue.ToString("yyy-MM-dd HH:mm:ss");
-                            //}
-                            //else
-                            //{
-                                dataRow[j] = cell.NumericCellValue;
-                            //}
+                            dataRow[j] = cell.NumericCellValue;
                             AllCellIsBlank = false;
                             break;
                         case CellType.Formula:
-                            //HSSFFormulaEvaluator e = new HSSFFormulaEvaluator(workbook);
-                            //dataRow[j] = e.Evaluate(cell).StringValue;
-
-                            //if (!string.IsNullOrEmpty(e.Evaluate(cell).StringValue))
-                            //{
-                            //    AllCellIsBlank = false;
-                            //}
                             switch (row.GetCell(j).CachedFormulaResultType)
                             {
                                 case CellType.String:
@@ -215,9 +180,6 @@ public class ExcelHelperV2_0
                                 case CellType.Boolean:
                                     dataRow[j] = Convert.ToString(row.GetCell(j).BooleanCellValue);
                                     break;
-                                //case HSSFCellType.ERROR:
-                                //    dataRow[j] = ErrorEval.GetText(row.GetCell(j).ErrorCellValue);
-                                //    break;
                                 default:
                                     dataRow[j] = "";
                                     break;
@@ -423,7 +385,10 @@ public class ExcelHelperV2_0
                             sheet.SetColumnWidth(i, 6000);
                         }
                         DataColumn column = dtSource.Columns[i];
-                        headerRow.CreateCell(column.Ordinal).SetCellValue(chineseHeaders[i]);
+                        if(chineseHeaders.Length==0 || chineseHeaders.Length!= dtSource.Columns.Count)
+                            headerRow.CreateCell(column.Ordinal).SetCellValue(column.ColumnName);
+                        else
+                            headerRow.CreateCell(column.Ordinal).SetCellValue(chineseHeaders[i]);
                         headerRow.GetCell(column.Ordinal).CellStyle = headStyle;
 
                         //设置列宽
@@ -441,9 +406,9 @@ public class ExcelHelperV2_0
             HSSFRow dataRow = (HSSFRow)sheet.CreateRow(rowIndex);
 
             #region 填充内容
+            int rowIndex_y = 0;
             foreach (DataColumn column in dtSource.Columns)
             {
-                
                 HSSFCell newCell = (HSSFCell)dataRow.CreateCell(column.Ordinal);
 
                 string drValue = row[column].ToString();
@@ -495,6 +460,15 @@ public class ExcelHelperV2_0
                         break;
                 }
 
+                // 插入批注
+                //if (row.Table.Columns.Contains(column + "_addition")) {
+                //    HSSFPatriarch patr = (HSSFPatriarch)sheet.CreateDrawingPatriarch();
+                //    HSSFComment comment = (HSSFComment)patr.CreateCellComment(new HSSFClientAnchor(0, 0, 0, 0, rowIndex, rowIndex_y, rowIndex, rowIndex_y));
+                //    comment.String = new HSSFRichTextString(row[column + "_addition"].ToString());
+                //    comment.Author = @"黄慧";
+                //    newCell.CellComment = comment;
+                //}
+                //rowIndex_y++;
             }
             #endregion
 
@@ -724,7 +698,46 @@ public class ExcelHelperV2_0
 
     //    return dtVal;
     //}
+    public static byte[] CreateVoucher(DataTable dt,string path, ref string msg)
+    {
+        msg = "";
+        byte[] data = null;
+        using (FileStream fs = new FileStream(path, FileMode.Open))
+        {
+            HSSFWorkbook wbHssf = new HSSFWorkbook(fs);
+            ISheet sheet = wbHssf.GetSheetAt(0);
+            sheet.ForceFormulaRecalculation = true;//
+            int index = 1;
+            foreach(DataRow r in dt.Rows)
+            {
+                IRow row = sheet.CreateRow(index);
+                foreach(DataColumn c in dt.Columns)
+                {
+                    if (string.IsNullOrEmpty(r[c.ColumnName].ToString()))
+                        continue;
+                    int cIndex = Convert.ToInt32(c.ColumnName)-1;
+                    ICell cell = row.CreateCell(cIndex);
+                    cell.SetCellValue(r[c.ColumnName].ToString());
+                }
+                index++;
+            }
 
+
+
+            //填完数据后，统一更新公式计算
+            wbHssf.GetCreationHelper().CreateFormulaEvaluator().EvaluateAll();
+            using (MemoryStream ms = new MemoryStream())
+            {
+                wbHssf.Write(ms);
+                ms.Flush();
+                ms.Position = 0;
+                data = ms.GetBuffer();
+            }
+            wbHssf = null;
+            sheet = null;
+        }
+        return data;
+    }
 
     public static byte[] EditSalesmanExcel(DataTable dt, ref string msg,string path, Dictionary<string, object> dictInfo)
     {
@@ -799,62 +812,88 @@ public class ExcelHelperV2_0
                     cell.SetCellValue((double)dictInfo["税金2"]);
                 }
             }
-
-            Dictionary<string, int> dict = new Dictionary<string, int>();            
-            dict.Add("出差车船费", 9);
-            dict.Add("住宿费", 10);
-            dict.Add("出差补贴", 11);
-            dict.Add("餐费", 13);
-            dict.Add("市内交通费", 14);
-            dict.Add("会议费", 15);
-            dict.Add("培训费", 16);
-            dict.Add("办公用品", 17);
-            dict.Add("工作餐", 18);
-            dict.Add("场地费", 25);
-            dict.Add("招待餐费", 26);
-            dict.Add("纪念品", 27);
-            dict.Add("外协劳务", 28);
-            dict.Add("外部人员机票/火车票", 29);
-            dict.Add("外部人员住宿费", 30);
-            dict.Add("外部人员交通费", 31);
-            dict.Add("学术会费", 32);
-            dict.Add("营销办公费", 33);
-
-            int count = 0;
-            foreach(DataRow rowVal in dt.Rows)
+            if(dt.Rows.Count>0)
             {
-                int CellIndex = 4 + count * 2;
-                row = sheet.GetRow(6);
-                cell = row.GetCell(CellIndex);
-                cell.SetCellValue(rowVal["date"].ToString());
+                Dictionary<string, int> dict = new Dictionary<string, int>();
+                dict.Add("出差车船费", 9);
+                dict.Add("住宿费", 10);
+                dict.Add("出差补贴", 11);
+                dict.Add("餐费", 13);
+                dict.Add("市内交通费", 14);
+                dict.Add("会议费", 15);
+                dict.Add("培训费", 16);
+                dict.Add("办公用品", 17);
+                dict.Add("工作餐", 18);
+                dict.Add("场地费", 25);
+                dict.Add("招待餐费", 26);
+                dict.Add("纪念品", 27);
+                dict.Add("外协劳务", 28);
+                dict.Add("外部人员机票/火车票", 29);
+                dict.Add("外部人员住宿费", 30);
+                dict.Add("外部人员交通费", 31);
+                dict.Add("学术会费", 32);
+                dict.Add("营销办公费", 33);
 
-                row = sheet.GetRow(7);
-                cell = row.GetCell(CellIndex);
-                cell.SetCellValue(rowVal["地点"].ToString());
-
-                row = sheet.GetRow(8);
-                cell = row.GetCell(CellIndex);
-                cell.SetCellValue(rowVal["出差内容描述"].ToString());
-
-                row = sheet.GetRow(24);
-                cell = row.GetCell(CellIndex);
-                cell.SetCellValue(rowVal["活动申请编号"].ToString());
-
-                row = sheet.GetRow(23);
-                cell = row.GetCell(CellIndex);
-                cell.SetCellValue(rowVal["活动内容描述"].ToString());
-
-                foreach (DataColumn c in dt.Columns)
+                int count = 0;
+                foreach (DataRow rowVal in dt.Rows)
                 {
-                    if(c.DataType == typeof(double))
+                    int CellIndex = 4 + count * 2;
+                    string val = rowVal["date"].ToString();
+                    if (!string.IsNullOrEmpty(val))
                     {
-                        row = sheet.GetRow(dict[c.ColumnName]);
+                        row = sheet.GetRow(6);
                         cell = row.GetCell(CellIndex);
-                        cell.SetCellValue(Convert.ToDouble(rowVal[c.ColumnName]));
+                        cell.SetCellValue(val);
                     }
+
+                    val = rowVal["地点"].ToString();
+                    if (!string.IsNullOrEmpty(val))
+                    {
+                        row = sheet.GetRow(7);
+                        cell = row.GetCell(CellIndex);
+                        cell.SetCellValue(val);
+                    }
+
+                    val = rowVal["出差内容描述"].ToString();
+                    if (!string.IsNullOrEmpty(val))
+                    {
+                        row = sheet.GetRow(8);
+                        cell = row.GetCell(CellIndex);
+                        cell.SetCellValue(val);
+                    }
+
+                    val = rowVal["活动申请编号"].ToString();
+                    if (!string.IsNullOrEmpty(val))
+                    {
+                        row = sheet.GetRow(24);
+                        cell = row.GetCell(CellIndex);
+                        cell.SetCellValue(val);
+                    }
+
+                    val = rowVal["活动内容描述"].ToString();
+                    if (!string.IsNullOrEmpty(val))
+                    {
+                        row = sheet.GetRow(23);
+                        cell = row.GetCell(CellIndex);
+                        cell.SetCellValue(val);
+                    }
+
+                    foreach (DataColumn c in dt.Columns)
+                    {
+                        if (c.DataType == typeof(double))
+                        {
+                            double tempVal = Convert.ToDouble(rowVal[c.ColumnName]);
+                            if (tempVal != 0)
+                            {
+                                row = sheet.GetRow(dict[c.ColumnName]);
+                                cell = row.GetCell(CellIndex);
+                                cell.SetCellValue(tempVal);
+                            }
+                        }
+                    }
+                    count++;
                 }
-                count++;
-            }
+            }    
 
             
 
@@ -909,6 +948,12 @@ public class ExcelHelperV2_0
                 row = sheet.GetRow(14);
                 cell = row.GetCell(2);
                 cell.SetCellValue((double)dictInfo["交通费"]);
+            }
+            if (dictInfo.ContainsKey("业务招待费"))
+            {
+                row = sheet.GetRow(16);
+                cell = row.GetCell(2);
+                cell.SetCellValue((double)dictInfo["业务招待费"]);
             }
 
             //核销预付款
@@ -1017,6 +1062,8 @@ public class ExcelHelperV2_0
                 count++;
             }
 
+            //填完数据后，统一更新公式计算
+            wbHssf.GetCreationHelper().CreateFormulaEvaluator().EvaluateAll();
             using (MemoryStream ms = new MemoryStream())
             {
                 wbHssf.Write(ms);

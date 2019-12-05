@@ -37,6 +37,12 @@
             <a href="javascript:void(0)" class="easyui-linkbutton"
                 onclick="$('#dlg-budget-Import').dialog('open');">导入Excel</a>
             <span id="departmentId"></span>
+            <a href="javascript:void(0)" class="easyui-linkbutton" onclick="
+            $.messager.prompt('下载月度预算使用情况表', '请输入年月，例如2019-10', function(r){
+                if (r){
+                    downLoadBudget(r);
+                }
+            });">下载月度预算使用情况表</a>
         </div>
         <table id="tg" class="easyui-treegrid" title="费用预算详细信息" style="width:700px;height:500px" data-options="
 				rownumbers: true,
@@ -165,6 +171,21 @@
                         $.messager.alert('提示', '本月本部门预算获取失败，请重新获取！', 'info');
                 });
         }
+
+        function downLoadBudget(date) {
+            parent.Loading(true);
+            $.post(url, { act: 'downLoadBudget' ,date:date},
+                function (res) {
+                    var datasource = JSON.parse(res);
+                    parent.Loading(false);
+                    if (datasource.ErrCode == 0) {
+                        window.location.href = 'ExportExcelHelper.aspx?fileName=' + datasource.fileName + '.xls&fileCode=' + datasource.fileCode;
+                    }
+                    else
+                        $.messager.alert('提示', res, 'info');
+                });
+        }
+
         function getDepartmentTree() {
             parent.Loading(true);
             $.post(url, { act: 'initDepartmentTree' },

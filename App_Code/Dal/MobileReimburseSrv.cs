@@ -376,7 +376,7 @@ public class MobileReimburseSrv
         string file, string remark, UserInfo userInfo, string approver, string department, string project, string isOverBudget, string isPrepaid, string isHasReceipt, string fee_company, string reportName)
     {
         string sql = string.Format("update yl_reimburse set apply_time = '{0}',name = '{1}',department = '{2}',branch = '{3}',fee_department = '{4}'," +
-            "fee_detail = '{5}',product = '{6}',approver = '{7}',remark = '{8}',file = '{9}',fee_amount = '{10}',LMT = NOW(), project = '{12}', isOverBudget = '{13}',isPrepaid = '{14}',isHasReceipt = '{15}', fee_company = '{16}', report_department= '{17}' where code = '{11}'", apply_time, userInfo.userName, 
+            "fee_detail = '{5}',product = '{6}',approver = '{7}',remark = '{8}',file = '{9}',fee_amount = '{10}',remain_fee_amount = '{10}', LMT = NOW(), project = '{12}', isOverBudget = '{13}',isPrepaid = '{14}',isHasReceipt = '{15}', fee_company = '{16}', report_department= '{17}' where code = '{11}'", apply_time, userInfo.userName, 
             department, branch, fee_department, fee_detail, product, approver, remark, file, fee_amount, code, project, isOverBudget, isPrepaid, isHasReceipt, fee_company, reportName);
         return SqlHelper.Exce(sql);
     }
@@ -572,13 +572,27 @@ public class MobileReimburseSrv
         string sql = string.Format("SELECT yr1.{0}, count(yr1.`code`) as sum,sum(yr1.fee_amount) AS feeAmount, sum(yr1.actual_fee_amount) AS actualFeeAmount " +
             " FROM (SELECT distinct yr.code,yr.`name`,yr.fee_department,yr.fee_detail,yr.remark,yr.fee_amount,yr.actual_fee_amount FROM yl_reimburse " +
             "yr LEFT JOIN approval_record ac ON yr.id = ac.docCode WHERE ac.documentTableName = 'yl_reimburse' AND  ac.ApprovalResult = '同意' " +
-            "and ac.ApprovalOpinions != '自动审批' AND approverId = '{1}' and yr.approval_time between '{4}-{5}-01 00:00:00' and '{4}-{5}-31 23:59:59') yr1" +
+            "and ac.ApprovalOpinions != '自动审批' AND approverId = '{1}' and yr.approval_time between '{4}-{5}-01 00:00:00' and '{4}-{5}-31 23:59:59' and (yr.status = '审批中' or yr.status = '已审批') and (yr.account_result = '同意' or yr.account_result is null)) yr1" +
             " GROUP BY yr1.{6};", type,userId,year,month-1,year,month,type);
         sql+= string.Format("SELECT distinct yr.code,yr.`name`,yr.fee_department,yr.fee_detail,yr.remark,yr.fee_amount,yr.actual_fee_amount" +
             " FROM yl_reimburse yr LEFT JOIN approval_record ac ON yr.id = ac.docCode WHERE ac.documentTableName = 'yl_reimburse' AND" +
-            " ac.ApprovalResult = '同意' and ac.ApprovalOpinions != '自动审批' AND approverId = '{1}' and yr.approval_time between '{4}-{5}-01 00:00:00' and '{4}-{5}-31 23:59:59'"
+            " ac.ApprovalResult = '同意' and ac.ApprovalOpinions != '自动审批' AND approverId = '{1}' and yr.approval_time between '{4}-{5}-01 00:00:00' and '{4}-{5}-31 23:59:59' and (yr.status = '审批中' or yr.status = '已审批') and (yr.account_result = '同意' or yr.account_result is null)"
             , type, userId, year, month - 1, year, month, type);
         return SqlHelper.Find(sql,ref msg);
+    }
+
+    public static DataSet accountSelfStatistics(string userName, int year, int month, string type, ref string msg)
+    {
+        string sql = string.Format("SELECT yr1.{0}, group_concat(yr1.code) totalCode, count(yr1.`code`) as sum,(select sum(fee_amount) from yl_reimburse where {0} = yr1.{0} and isPrepaid = 0 and " +
+            "year(lmt) = '{1}' and month(lmt) = '{2}' and name = '{3}' and (status = '审批中' or status = '已审批') and (account_result = '同意' or account_result is null)) " +
+            "AS feeAmount, sum(yr1.actual_fee_amount) AS actualFeeAmount, (select sum(fee_amount) from yl_reimburse where {0} = yr1.{0} and isPrepaid = 1 and " +
+            "year(lmt) = '{1}' and month(lmt) = '{2}' and name = '{3}' and (status = '审批中' or status = '已审批') and (account_result = '同意' or account_result is null)) " +
+            "prepaidAmount,sum(yr1.pay_amount) payAmount FROM yl_reimburse yr1 where year(yr1.lmt) = '{1}' and month(yr1.lmt) = '{2}' and yr1.name = '{3}' and " +
+            "(yr1.status = '审批中' or yr1.status = '已审批') and (yr1.account_result = '同意' or yr1.account_result is null) group by yr1.{0};", type, year, month, userName, type);
+        sql += string.Format("SELECT distinct yr.code,yr.`name`,yr.fee_department,yr.fee_detail,yr.remark,yr.fee_amount,yr.actual_fee_amount" +
+            " FROM yl_reimburse yr where year(yr.lmt) = '{1}' and month(yr.lmt) = '{2}' and yr.name = '{3}' and (yr.status = '审批中' or yr.status = '已审批') and (yr.account_result = '同意' or yr.account_result is null);", type, year, month, userName, type);
+
+        return SqlHelper.Find(sql, ref msg);
     }
 
     public static DataSet findInformerByCode(string docCode)
@@ -598,17 +612,28 @@ public class MobileReimburseSrv
 
     public static string cancel(string docCode, UserInfo userInfo)
     {
-        string sql1 = string.Format("update yl_reimburse set status = '草稿', level = '-1' where code = '{0}'", docCode);
+        string sql = string.Format("update yl_reimburse set status = '草稿', level = '-1', approvalResult = '审批中' where code = '{0}';", docCode);
 
-        string sql2 = string.Format("insert into approval_record (DocumentTableName,DocCode,Level,Time,ApproverId,SubmitterId,ApprovalResult)" +
-            "values ('yl_reimburse',(select id from yl_reimburse where code = '{0}'),'0',now(),'{1}','{1}','撤消')",docCode, userInfo.userId);
+        sql += string.Format("insert into approval_record (DocumentTableName,DocCode,Level,Time,ApproverId,SubmitterId,ApprovalResult)" +
+            "values ('yl_reimburse',(select id from yl_reimburse where code = '{0}'),'0',now(),'{1}','{1}','撤消');",docCode, userInfo.userId);
 
-        List<string> sqls = new List<string>();
+        // 删除关联差旅申请
+        sql += string.Format("delete from wf_form_差旅申请 where reimburseCode = '{0}';", docCode);
 
-        sqls.Add(sql1);
-        sqls.Add(sql2);
+        // 删除关联借款单 并把借款单的金额还原
+        DataTable dt = SqlHelper.Find(string.Format("select * from yl_reimburse_loan where ReimburseCode = '{0}'", docCode)).Tables[0];
 
-        return SqlHelper.Exce(sqls.ToArray());
+        sql += string.Format("delete from yl_reimburse_loan where ReimburseCode = '{0}';", docCode);
+
+        foreach (DataRow dr in dt.Rows)
+        {
+            decimal amount = Decimal.Parse(dr["amount"].ToString());
+            string code = dr["docCode"].ToString();
+
+            sql += string.Format("update wf_form_借款单 set remainAmount = remainAmount + {0} where docCode = '{1}';", amount, code);
+        }
+
+        return SqlHelper.Exce(sql);
     }
 
     public static DataSet GetDepartmentListAndFeeDetailList()

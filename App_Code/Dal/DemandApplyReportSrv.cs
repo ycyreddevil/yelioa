@@ -196,10 +196,9 @@ public class DemandApplyReportSrv
 
     public static DataSet GetDocument(string starttm, string endtm, string applyName, string hospital, string product, string isChecked,ref string msg)
     {
-        string sql = string.Format("SELECT dar.*,jc.`clientName` hospitalName,jp.`productName` productName, na.name agentName, jp.Specification,jp.Unit,vudp.department FROM `demand_apply_report` dar " +
+        string sql = string.Format("SELECT dar.*,jc.`clientName` hospitalName,jp.`productName` productName, na.name agentName, jp.Specification,jp.Unit FROM `demand_apply_report` dar " +
             "left JOIN new_client jc ON dar.HospitalCode=jc.`clientCode` " +
             "LEFT JOIN new_product jp on dar.ProductCode=jp.`productCode` " +
-            "LEFT JOIN v_user_department_post vudp on dar.UserId=vudp.userId " +
             "left join new_agent na on dar.agentCode = na.code " +
             " WHERE status = '已审批'  and ApproveTime is not null");
 
@@ -227,7 +226,7 @@ public class DemandApplyReportSrv
         {
             sql += " and (OperationApprovalTime is not null and (DeliverNumber-ApprovalNumber) = 0) or (Opinion is not null)";
         }
-        sql += " order by dar.LMT";
+        sql += " order by dar.LMT desc";
 
         return SqlHelper.Find(sql,ref msg);
     }

@@ -74,9 +74,18 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
     private string getSelfReimburseList()
     {
         UserInfo user = (UserInfo)Session["user"];
+        string batchNo = Request.Form["batchNo"];
 
+        
         string sql = string.Format("select * from yl_reimburse where name = '{0}' and remain_fee_amount > 0 and " +
-            "approval_time is not null and status = '已审批' and fee_detail != 'VIP维护' and account_approval_time is null", user.userName);
+        "approval_time is not null and status = '已审批' and fee_detail != 'VIP维护' and account_result is null", user.userName);
+
+        if (!string.IsNullOrEmpty(batchNo))
+        {
+            sql = string.Format("select t1.* from yl_reimburse t1 left join yl_reimburse_detail t2 on t2.code like concat(%,t1.code,%) " +
+                " where t2.batchNo = '{1}' t1.name = '{0}' and t1.remain_fee_amount > 0 and " +
+            "t1.approval_time is not null and t1.status = '已审批' and t1.fee_detail != 'VIP维护' and account_result is null", user.userName, batchNo);
+        }
 
         DataTable dt = SqlHelper.Find(sql).Tables[0];
 
@@ -97,7 +106,14 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
 
         string sql = string.Format("select department from v_user_department_post where userId = '{0}'", user.userId);
 
-        string departmentName = SqlHelper.Find(sql).Tables[0].Rows[0][0].ToString();
+        DataTable dt = SqlHelper.Find(sql).Tables[0];
+
+        string departmentName = "";
+
+        foreach (DataRow dr in dt.Rows)
+        {
+            departmentName += dr[0].ToString() + ",";
+        }
 
         JObject jobject = new JObject
         {
@@ -149,8 +165,13 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
             string token = CalculateMD5Hash("5d883630+"+ timeStamp + "+3dcae883c9b3fec8b114c9c89493f85a");
 
             ////压缩图片的存储路径
-            string reducedPath = _filePath.Substring(0, _filePath.LastIndexOf("\\") + 1) + Guid.NewGuid().ToString() + ".jpg";
-            CompressImage(_filePath, reducedPath, 50, 1000, false);
+            string reducedPath = _filePath;
+
+            if (photoBytes.Length > 1 * 1024 * 1024)
+            {
+                reducedPath = _filePath.Substring(0, _filePath.LastIndexOf("\\") + 1) + Guid.NewGuid().ToString() + ".jpg";
+                CompressImage(_filePath, reducedPath, 80, 300, false);
+            }
 
             //// 获取压缩图片的base64编码
             string reducedBase64 = ImgToBase64String(reducedPath);
@@ -212,9 +233,64 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
 
                 jarray.Add(jObjectList[i]);
             }
+
+            WipeFile(_filePath, 1);
         }
 
         return jarray.ToString();
+    }
+
+    /// <summary>
+    /// 文件彻底删除
+    /// </summary>
+    /// <param name="filename"></param>
+    /// <param name="timesToWrite"></param>
+    public void WipeFile(string filename, int timesToWrite)
+    {
+        try
+        {
+            if (File.Exists(filename))
+            {
+                //设置文件的属性为正常，这是为了防止文件是只读 
+                File.SetAttributes(filename, FileAttributes.Normal);
+                //计算扇区数目 
+                double sectors = Math.Ceiling(new FileInfo(filename).Length / 512.0);
+                // 创建一个同样大小的虚拟缓存 
+                byte[] dummyBuffer = new byte[512];
+                // 创建一个加密随机数目生成器 
+                RNGCryptoServiceProvider rng = new RNGCryptoServiceProvider();
+                // 打开这个文件的FileStream 
+                FileStream inputStream = new FileStream(filename, FileMode.Open, FileAccess.Write, FileShare.ReadWrite);
+                for (int currentPass = 0; currentPass < timesToWrite; currentPass++)
+                {
+                    // 文件流位置 
+                    inputStream.Position = 0;
+                    //循环所有的扇区 
+                    for (int sectorsWritten = 0; sectorsWritten < sectors; sectorsWritten++)
+                    {
+                        //把垃圾数据填充到流中 
+                        rng.GetBytes(dummyBuffer);
+                        // 写入文件流中 
+                        inputStream.Write(dummyBuffer, 0, dummyBuffer.Length);
+                    }
+                }
+                // 清空文件 
+                inputStream.SetLength(0);
+                // 关闭文件流 
+                inputStream.Close();
+                // 清空原始日期需要 
+                DateTime dt = new DateTime(2037, 1, 1, 0, 0, 0);
+                File.SetCreationTime(filename, dt);
+                File.SetLastAccessTime(filename, dt);
+                File.SetLastWriteTime(filename, dt);
+                // 删除文件 
+                File.Delete(filename);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.ToString());
+        }
     }
 
     /// <summary>  
@@ -341,7 +417,6 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
         }
     }
 
-
     public static string ImgToBase64String(string Imagefilename)
     {
         try
@@ -434,7 +509,7 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
 
             DataTable dt = SqlHelper.Find(tempSql).Tables[0];
 
-            if ("已提交".Equals(dt.Rows[0][0].ToString()))
+            if (dt.Rows.Count > 0 && "已提交".Equals(dt.Rows[0][0].ToString()))
             {
                 result.Add("code", 200);
                 result.Add("msg", "操作成功");
@@ -445,21 +520,15 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
 
         foreach (JObject temp in receiptList)
         {
-            if (temp.Property("code") == null)
-                temp.Add("code", codeString);
-            if (temp.Property("status") == null)
-                temp.Add("status", "草稿");
-            if (temp.Property("createTime") == null)
-                temp.Add("createTime", DateTime.Now);
-            if (temp.Property("batchNo") == null)
-                temp.Add("batchNo", batchNo);
-            if (temp.Property("receiptDesc") == null)
-                temp.Add("receiptDesc", receiptDesc);
-            if (temp.Property("submitterId") == null)
-                temp.Add("submitterId", userInfo.userId.ToString());
+            temp["code"] = codeString;
+            temp["status"] = "草稿";
+            temp["createTime"] = DateTime.Now;
+            temp["batchNo"] = batchNo;
+            temp["receiptDesc"] = receiptDesc;
+            temp["submitterId"] = userInfo.userId.ToString();
         }
 
-        string sql = string.Format("delete from yl_reimburse_detail where batchNo = '{0}';", batchNo);
+        string sql = string.Format("delete from yl_reimburse_detail where submitterId = '{0}' and status = '草稿';", userInfo.userId.ToString());
         sql += SqlHelper.GetInsertString(receiptList, "yl_reimburse_detail");
 
         string msg = SqlHelper.Exce(sql);
@@ -504,22 +573,17 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
 
         foreach (JObject temp in receiptList)
         {
+            temp["code"] = codeString;
             temp["status"] = "已提交";
-            if (temp.Property("code") == null)
-                temp.Add("code", codeString);
-            if (temp.Property("createTime") == null)
-                temp.Add("createTime", DateTime.Now);
-            if (temp.Property("batchNo") == null)
-                temp.Add("batchNo", batchNo);
-            if (temp.Property("receiptDesc") == null)
-                temp.Add("receiptDesc", receiptDesc);
-            if (temp.Property("submitterId") == null)
-                temp.Add("submitterId", userInfo.userId.ToString());
+            temp["createTime"] = DateTime.Now;
+            temp["batchNo"] = batchNo;
+            temp["receiptDesc"] = receiptDesc;
+            temp["submitterId"] = userInfo.userId.ToString();
 
             DataTable dt = new DataTable();
 
             // 发票公司税号校验
-            if (temp["sellerRegisterNum"] != null)
+            if (!string.IsNullOrEmpty(temp["sellerRegisterNum"].ToString()))
             {
                 string sellerRegisterNum = temp["sellerRegisterNum"].ToString();
 
@@ -538,46 +602,51 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
             }
 
             // 发票查重
-            string checkDuplicateSql = string.Format("select 1 from yl_reimburse_detail where receiptCode = '{0}' and receiptNum = '{1}' and status = '同意'", temp["receiptCode"], temp["receiptNum"]);
-
-            DataTable checkDuplicateDt = SqlHelper.Find(checkDuplicateSql).Tables[0];
-
-            if (checkDuplicateDt.Rows.Count > 0)
+            if (temp["receiptCode"].ToString() != "" && temp["receiptCode"].ToString() != "")
             {
-                result.Add("code", 400);
-                result.Add("msg", string.Format("发票代码:{0},发票号码:{1},此发票重复使用！", temp["receiptCode"], temp["receiptNum"]));
+                string checkDuplicateSql = string.Format("select 1 from yl_reimburse_detail where receiptCode = '{0}' and receiptNum = '{1}' and status != '拒绝' and status != '草稿'", temp["receiptCode"], temp["receiptNum"]);
 
-                return result.ToString();
+                DataTable checkDuplicateDt = SqlHelper.Find(checkDuplicateSql).Tables[0];
+
+                if (checkDuplicateDt.Rows.Count > 0)
+                {
+                    result.Add("code", 400);
+                    result.Add("msg", string.Format("发票代码:{0},发票号码:{1},此发票重复使用！", temp["receiptCode"], temp["receiptNum"]));
+
+                    return result.ToString();
+                }
             }
 
             // 发票验真伪
-            if (temp["feeType"] != null && temp["feeType"].ToString() != "增值税专用发票" && !temp["feeType"].ToString().Contains("增值税普通发票") 
-                && temp["feeType"].ToString() != "增值税电子普通发票" && temp["feeType"].ToString() != "火车票" && temp["feeType"].ToString() != "飞机票")
+            if (temp["feeType"] != null && (temp["feeType"].ToString() == "出租车票" || temp["feeType"].ToString() == "通用机打发票" 
+                || temp["feeType"].ToString() == "定额发票" || temp["feeType"].ToString() == "汽车票") && temp["receiptNum"].ToString() != temp["receiptCode"].ToString())
             {
-                string receiptPlace = temp["receiptPlace"].ToString();
-                string province = receiptPlace.Substring(0, receiptPlace.IndexOf("省"));
+                string province = temp["receiptPlace"].ToString();
+
+                if (!province.Contains("北京") && !province.Contains("上海") && !province.Contains("天津") && !province.Contains("重庆"))
+                    province = province.Substring(0, province.IndexOf("省"));
 
                 string validateMsg = "";
 
                 if (province == "江西")
                 {
-                    validateMsg = ReceiptValidate.JxHandWriting(temp["receiptNum"].ToString(), temp["receiptCode"].ToString());
+                    //validateMsg = ReceiptValidate.JxHandWriting(temp["receiptNum"].ToString(), temp["receiptCode"].ToString());
 
-                    JObject tempJObject = JObject.Parse(validateMsg);
+                    //JObject tempJObject = JObject.Parse(validateMsg);
 
-                    if (tempJObject.Property("LX") == null || tempJObject.Property("LX").ToString() == "")
-                    {
-                        result.Add("code", 400);
-                        result.Add("msg", string.Format("发票代码:{0},发票号码:{1},此发票与税务机关信息不符,请确定发票代码和发票号码后重新提交！", temp["receiptCode"], temp["receiptNum"]));
+                    //if (tempJObject.Property("LX") == null || tempJObject.Property("LX").ToString() == "")
+                    //{
+                    //    result.Add("code", 400);
+                    //    result.Add("msg", string.Format("发票代码:{0},发票号码:{1},此发票与税务机关信息不符,请确定发票代码和发票号码后重新提交！", temp["receiptCode"], temp["receiptNum"]));
 
-                        return result.ToString();
-                    }
+                    //    return result.ToString();
+                    //}
                 }
                 else if (province == "湖南")
                 {
                     validateMsg = ReceiptValidate.HnQuotaInvoice(temp["receiptCode"].ToString(), temp["receiptNum"].ToString());
 
-                    JObject tempJObject = JsonHelper.JsonDeserialize<JObject>(validateMsg);
+                    JObject tempJObject = JObject.Parse(validateMsg);
 
                     if (tempJObject["status"].ToString() == "0")
                     {
@@ -592,282 +661,328 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
             // 费用标准控制
             UserInfo user = (UserInfo)Session["user"];
 
-            string temp_sql = string.Format("select post from users where userId = '{0}';", user.userId);
-
-            string relativePerson = Request.Form["relativePerson"];
-            temp_sql += string.Format("select post from users where userName = '{0}';", relativePerson);
-
-            dt = SqlHelper.Find(temp_sql).Tables[0];
-
-            if (dt != null && dt.Rows.Count > 0)
+            if (user.userName != "李茂龙")
             {
-                string startTm = temp["activityDate"].ToString();
-                string endTm = temp["activityEndDate"] == null ? temp["activityDate"].ToString() : temp["activityEndDate"].ToString();
-                string post = dt.Rows[0][0].ToString();
-                double receiptAmount = double.Parse(temp["receiptAmount"].ToString());
-                double interval_time = Convert.ToDateTime(endTm).Subtract(Convert.ToDateTime(startTm)).Days + 1;    ///// 差旅费算头算尾
-                int endHour = Convert.ToDateTime(endTm).Hour;
-                int startHour = Convert.ToDateTime(startTm).Hour;
-                if (endHour <= 12)
-                {
-                    interval_time -= 0.5;
-                }
-                if (startHour >= 12)
-                {
-                    interval_time -= 0.5;
-                }
+                string temp_sql = string.Format("select post from users where userId = '{0}';", user.userId);
 
-                // 此处实报实销和出差补贴是反的 方便页面显示
-                if (temp["receiptType"].ToString() == "实报实销")
+                string relativePerson = temp["relativePerson"].ToString();
+                temp_sql += string.Format("select post from users where userName = '{0}';", relativePerson);
+                temp_sql += string.Format("select department from v_user_department_post where userId = '{0}'", user.userId);
+
+                DataSet ds = SqlHelper.Find(temp_sql);
+
+                dt = ds.Tables[0];
+
+                if (dt != null && dt.Rows.Count > 0)
                 {
-                    if (!post.Contains("经理") && !post.Contains("总监") && !post.Contains("副总经理") && !post.Contains("总经理"))
+                    string startTm = temp["activityDate"].ToString();
+                    string endTm = string.IsNullOrEmpty(temp["activityEndDate"].ToString()) ? temp["activityDate"].ToString() : temp["activityEndDate"].ToString();
+                    string post = dt.Rows[0][0].ToString();
+                    double receiptAmount = double.Parse(temp["receiptAmount"].ToString());
+
+                    DateTime d1 = Convert.ToDateTime(endTm);
+                    DateTime d2 = Convert.ToDateTime(startTm);
+
+                    DateTime d3 = Convert.ToDateTime(string.Format("{0}-{1}-{2}", d1.Year, d1.Month, d1.Day));
+                    DateTime d4 = Convert.ToDateTime(string.Format("{0}-{1}-{2}", d2.Year, d2.Month, d2.Day));
+
+                    double interval_time = (d3 - d4).Days + 1;
+                    //double interval_time = Convert.ToDateTime(endTm).Subtract(Convert.ToDateTime(startTm)).Days + 1;    ///// 差旅费算头算尾
+
+                    int endHour = Convert.ToDateTime(endTm).Hour;
+                    int startHour = Convert.ToDateTime(startTm).Hour;
+
+                    if (endHour <= 12)
                     {
-                        if (receiptAmount > 80 * interval_time)
-                        {
-                            result.Add("code", 400);
-                            result.Add("msg", "出差补贴不能超过一天80");
-
-                            return result.ToString();
-                        }
+                        interval_time -= 0.5;
                     }
-                    else
+                    if (startHour >= 12 && startHour <= 18)
                     {
-                        if (receiptAmount > 150 * interval_time)
-                        {
-                            result.Add("code", 400);
-                            result.Add("msg", "出差补贴不能超过一天150");
-
-                            return result.ToString();
-                        }
+                        interval_time -= 0.5;
                     }
-                }
-                else if (temp["receiptType"].ToString() == "住宿费")
-                {
-                    // 比较提交人的岗位和同行人的岗位 按大的计算
-                    dt = SqlHelper.Find(temp_sql).Tables[1];
-
-                    if (dt != null && dt.Rows.Count > 0)
+                    else if (startHour > 18)
                     {
-                        string relativePost = dt.Rows[0][0].ToString();
+                        interval_time -= 1;
+                    }
 
-                        if (relativePerson == "总经理")
-                            post = "总经理";
-                        else if (relativePerson == "副总经理")
+                    // 此处实报实销和出差补贴是反的 方便页面显示
+                    if (temp["receiptType"].ToString() == "实报实销")
+                    {
+                        dt = ds.Tables[2];
+
+                        string userDepartmentName = dt.Rows[0][0].ToString();
+
+                        if (userDepartmentName.Contains("营销中心"))
                         {
-                            if (post != "总经理")
-                                post = relativePost;
-                        }
-                        else if (relativePerson.Contains("总监"))
-                        {
-                            if (post != "总经理" && post != "副总经理")
-                                post = relativePost;
-                        }
-                        else if (relativePerson.Contains("经理"))
-                        {
-                            if (post != "总经理" && post != "副总经理" && !post.Contains("总监"))
-                                post = relativePost;
-                        }
-                        else if (relativePerson.Contains("主管"))
-                        {
-                            if (post != "总经理" && post != "副总经理" && !post.Contains("总监") && !post.Contains("经理"))
-                                post = relativePost;
+                            if (!post.Contains("经理") && !post.Contains("总监") && !post.Contains("副总经理") && !post.Contains("总经理"))
+                            {
+                                if (receiptAmount > 80 * interval_time)
+                                {
+                                    result.Add("code", 400);
+                                    result.Add("msg", "出差补贴不能超过一天80");
+
+                                    return result.ToString();
+                                }
+                            }
+                            else
+                            {
+                                if (receiptAmount > 150 * interval_time)
+                                {
+                                    result.Add("code", 400);
+                                    result.Add("msg", "出差补贴不能超过一天150");
+
+                                    return result.ToString();
+                                }
+                            }
                         }
                         else
                         {
-                            post = relativePost;
-                        }
-                    }
-
-                    // 住宿费算头不算尾
-                    interval_time = Convert.ToDateTime(endTm).Subtract(Convert.ToDateTime(startTm)).Days;
-
-                    if (post.Contains("总经理"))
-                    {
-                        
-                    }
-                    else if (post.Contains("副总经理"))
-                    {
-                        if (checkCityLevel(temp["receiptPlace"].ToString()) == "1" || checkCityLevel(temp["receiptPlace"].ToString()) == "2")
-                        {
-                            if (receiptAmount > 360 * interval_time)
+                            if (receiptAmount > 80 * interval_time)
                             {
                                 result.Add("code", 400);
-                                result.Add("msg", "住宿费不能超过一晚360");
-
-                                return result.ToString();
-                            }
-                        }
-                        else if (checkCityLevel(temp["receiptPlace"].ToString()) == "3" || checkCityLevel(temp["receiptPlace"].ToString()) == "4")
-                        {
-                            if (receiptAmount > 280 * interval_time)
-                            {
-                                result.Add("code", 400);
-                                result.Add("msg", "住宿费不能超过一晚280");
+                                result.Add("msg", "出差补贴不能超过一天80");
 
                                 return result.ToString();
                             }
                         }
                     }
-                    else if (post.Contains("总监"))
+                    else if (temp["receiptType"].ToString() == "住宿费")
                     {
-                        if (checkCityLevel(temp["receiptPlace"].ToString()) == "1" || checkCityLevel(temp["receiptPlace"].ToString()) == "2")
-                        {
-                            if (receiptAmount > 280 * interval_time)
-                            {
-                                result.Add("code", 400);
-                                result.Add("msg", "住宿费不能超过一晚280");
+                        // 比较提交人的岗位和同行人的岗位 按大的计算
+                        dt = ds.Tables[1];
 
-                                return result.ToString();
+                        if (dt != null && dt.Rows.Count > 0)
+                        {
+                            string relativePost = dt.Rows[0][0].ToString();
+
+                            if (relativePost == "总经理")
+                                post = "总经理";
+                            else if (relativePost == "副总经理")
+                            {
+                                if (post != "总经理")
+                                    post = relativePost;
+                            }
+                            else if (relativePost.Contains("总监"))
+                            {
+                                if (post != "总经理" && post != "副总经理")
+                                    post = relativePost;
+                            }
+                            else if (relativePost.Contains("经理"))
+                            {
+                                if (post != "总经理" && post != "副总经理" && !post.Contains("总监"))
+                                    post = relativePost;
+                            }
+                            else if (relativePost.Contains("主管"))
+                            {
+                                if (post != "总经理" && post != "副总经理" && !post.Contains("总监") && !post.Contains("经理"))
+                                    post = relativePost;
+                            }
+                            else
+                            {
+                                post = relativePost;
                             }
                         }
-                        else if (checkCityLevel(temp["receiptPlace"].ToString()) == "3" || checkCityLevel(temp["receiptPlace"].ToString()) == "4")
-                        {
-                            if (receiptAmount > 220 * interval_time)
-                            {
-                                result.Add("code", 400);
-                                result.Add("msg", "住宿费不能超过一晚220");
 
-                                return result.ToString();
+                        // 住宿费算头不算尾
+                        //interval_time = Convert.ToDateTime(endTm).Subtract(Convert.ToDateTime(startTm)).Days;
+
+                        d1 = Convert.ToDateTime(endTm);
+                        d2 = Convert.ToDateTime(startTm);
+
+                        d3 = Convert.ToDateTime(string.Format("{0}-{1}-{2}", d1.Year, d1.Month, d1.Day));
+                        d4 = Convert.ToDateTime(string.Format("{0}-{1}-{2}", d2.Year, d2.Month, d2.Day));
+
+                        interval_time = (d3 - d4).Days;
+
+                        if (post.Contains("总经理"))
+                        {
+
+                        }
+                        else if (post.Contains("副总经理"))
+                        {
+                            if (checkCityLevel(temp["receiptPlace"].ToString()) == "1" || checkCityLevel(temp["receiptPlace"].ToString()) == "2")
+                            {
+                                if (receiptAmount > 360 * interval_time)
+                                {
+                                    result.Add("code", 400);
+                                    result.Add("msg", "住宿费不能超过一晚360");
+
+                                    return result.ToString();
+                                }
+                            }
+                            else if (checkCityLevel(temp["receiptPlace"].ToString()) == "3" || checkCityLevel(temp["receiptPlace"].ToString()) == "4")
+                            {
+                                if (receiptAmount > 280 * interval_time)
+                                {
+                                    result.Add("code", 400);
+                                    result.Add("msg", "住宿费不能超过一晚280");
+
+                                    return result.ToString();
+                                }
                             }
                         }
-                    }
-                    else if (post.Contains("经理"))
-                    {
-                        if (checkCityLevel(temp["receiptPlace"].ToString()) == "1")
+                        else if (post.Contains("总监"))
                         {
-                            if (receiptAmount > 220 * interval_time)
+                            if (checkCityLevel(temp["receiptPlace"].ToString()) == "1" || checkCityLevel(temp["receiptPlace"].ToString()) == "2")
                             {
-                                result.Add("code", 400);
-                                result.Add("msg", "住宿费不能超过一晚220");
+                                if (receiptAmount > 280 * interval_time)
+                                {
+                                    result.Add("code", 400);
+                                    result.Add("msg", "住宿费不能超过一晚280");
 
-                                return result.ToString();
+                                    return result.ToString();
+                                }
+                            }
+                            else if (checkCityLevel(temp["receiptPlace"].ToString()) == "3" || checkCityLevel(temp["receiptPlace"].ToString()) == "4")
+                            {
+                                if (receiptAmount > 220 * interval_time)
+                                {
+                                    result.Add("code", 400);
+                                    result.Add("msg", "住宿费不能超过一晚220");
+
+                                    return result.ToString();
+                                }
                             }
                         }
-                        else if (checkCityLevel(temp["receiptPlace"].ToString()) == "2")
+                        else if (post.Contains("经理"))
                         {
-                            if (receiptAmount > 180 * interval_time)
+                            if (checkCityLevel(temp["receiptPlace"].ToString()) == "1")
                             {
-                                result.Add("code", 400);
-                                result.Add("msg", "住宿费不能超过一晚180");
+                                if (receiptAmount > 220 * interval_time)
+                                {
+                                    result.Add("code", 400);
+                                    result.Add("msg", "住宿费不能超过一晚220");
 
-                                return result.ToString();
+                                    return result.ToString();
+                                }
+                            }
+                            else if (checkCityLevel(temp["receiptPlace"].ToString()) == "2")
+                            {
+                                if (receiptAmount > 180 * interval_time)
+                                {
+                                    result.Add("code", 400);
+                                    result.Add("msg", "住宿费不能超过一晚180");
+
+                                    return result.ToString();
+                                }
+                            }
+                            else if (checkCityLevel(temp["receiptPlace"].ToString()) == "3")
+                            {
+                                if (receiptAmount > 150 * interval_time)
+                                {
+                                    result.Add("code", 400);
+                                    result.Add("msg", "住宿费不能超过一晚150");
+
+                                    return result.ToString();
+                                }
+                            }
+                            else if (checkCityLevel(temp["receiptPlace"].ToString()) == "4")
+                            {
+                                if (receiptAmount > 120 * interval_time)
+                                {
+                                    result.Add("code", 400);
+                                    result.Add("msg", "住宿费不能超过一晚120");
+
+                                    return result.ToString();
+                                }
                             }
                         }
-                        else if (checkCityLevel(temp["receiptPlace"].ToString()) == "3")
+                        else if (post.Contains("主管"))
                         {
-                            if (receiptAmount > 150 * interval_time)
+                            if (checkCityLevel(temp["receiptPlace"].ToString()) == "1")
                             {
-                                result.Add("code", 400);
-                                result.Add("msg", "住宿费不能超过一晚150");
+                                if (receiptAmount > 200 * interval_time)
+                                {
+                                    result.Add("code", 400);
+                                    result.Add("msg", "住宿费不能超过一晚200");
 
-                                return result.ToString();
+                                    return result.ToString();
+                                }
+                            }
+                            else if (checkCityLevel(temp["receiptPlace"].ToString()) == "2")
+                            {
+                                if (receiptAmount > 160 * interval_time)
+                                {
+                                    result.Add("code", 400);
+                                    result.Add("msg", "住宿费不能超过一晚160");
+
+                                    return result.ToString();
+                                }
+                            }
+                            else if (checkCityLevel(temp["receiptPlace"].ToString()) == "3")
+                            {
+                                if (receiptAmount > 130 * interval_time)
+                                {
+                                    result.Add("code", 400);
+                                    result.Add("msg", "住宿费不能超过一晚130");
+
+                                    return result.ToString();
+                                }
+                            }
+                            else if (checkCityLevel(temp["receiptPlace"].ToString()) == "4")
+                            {
+                                if (receiptAmount > 110 * interval_time)
+                                {
+                                    result.Add("code", 400);
+                                    result.Add("msg", "住宿费不能超过一晚110");
+
+                                    return result.ToString();
+                                }
                             }
                         }
-                        else if (checkCityLevel(temp["receiptPlace"].ToString()) == "4")
+                        else
                         {
-                            if (receiptAmount > 120 * interval_time)
+                            if (checkCityLevel(temp["receiptPlace"].ToString()) == "1")
                             {
-                                result.Add("code", 400);
-                                result.Add("msg", "住宿费不能超过一晚120");
+                                if (receiptAmount > 180 * interval_time)
+                                {
+                                    result.Add("code", 400);
+                                    result.Add("msg", "住宿费不能超过一晚180");
 
-                                return result.ToString();
+                                    return result.ToString();
+                                }
                             }
-                        }
-                    }
-                    else if (post.Contains("主管"))
-                    {
-                        if (checkCityLevel(temp["receiptPlace"].ToString()) == "1")
-                        {
-                            if (receiptAmount > 200 * interval_time)
+                            else if (checkCityLevel(temp["receiptPlace"].ToString()) == "2")
                             {
-                                result.Add("code", 400);
-                                result.Add("msg", "住宿费不能超过一晚200");
+                                if (receiptAmount > 150 * interval_time)
+                                {
+                                    result.Add("code", 400);
+                                    result.Add("msg", "住宿费不能超过一晚150");
 
-                                return result.ToString();
+                                    return result.ToString();
+                                }
                             }
-                        }
-                        else if (checkCityLevel(temp["receiptPlace"].ToString()) == "2")
-                        {
-                            if (receiptAmount > 160 * interval_time)
+                            else if (checkCityLevel(temp["receiptPlace"].ToString()) == "3")
                             {
-                                result.Add("code", 400);
-                                result.Add("msg", "住宿费不能超过一晚160");
+                                if (receiptAmount > 120 * interval_time)
+                                {
+                                    result.Add("code", 400);
+                                    result.Add("msg", "住宿费不能超过一晚120");
 
-                                return result.ToString();
+                                    return result.ToString();
+                                }
                             }
-                        }
-                        else if (checkCityLevel(temp["receiptPlace"].ToString()) == "3")
-                        {
-                            if (receiptAmount > 130 * interval_time)
+                            else if (checkCityLevel(temp["receiptPlace"].ToString()) == "4")
                             {
-                                result.Add("code", 400);
-                                result.Add("msg", "住宿费不能超过一晚130");
+                                if (receiptAmount > 100 * interval_time)
+                                {
+                                    result.Add("code", 400);
+                                    result.Add("msg", "住宿费不能超过一晚100");
 
-                                return result.ToString();
-                            }
-                        }
-                        else if (checkCityLevel(temp["receiptPlace"].ToString()) == "4")
-                        {
-                            if (receiptAmount > 110 * interval_time)
-                            {
-                                result.Add("code", 400);
-                                result.Add("msg", "住宿费不能超过一晚110");
-
-                                return result.ToString();
-                            }
-                        }
-                    }
-                    else
-                    {
-                        if (checkCityLevel(temp["receiptPlace"].ToString()) == "1")
-                        {
-                            if (receiptAmount > 180 * interval_time)
-                            {
-                                result.Add("code", 400);
-                                result.Add("msg", "住宿费不能超过一晚180");
-
-                                return result.ToString();
-                            }
-                        }
-                        else if (checkCityLevel(temp["receiptPlace"].ToString()) == "2")
-                        {
-                            if (receiptAmount > 150 * interval_time)
-                            {
-                                result.Add("code", 400);
-                                result.Add("msg", "住宿费不能超过一晚150");
-
-                                return result.ToString();
-                            }
-                        }
-                        else if (checkCityLevel(temp["receiptPlace"].ToString()) == "3")
-                        {
-                            if (receiptAmount > 120 * interval_time)
-                            {
-                                result.Add("code", 400);
-                                result.Add("msg", "住宿费不能超过一晚120");
-
-                                return result.ToString();
-                            }
-                        }
-                        else if (checkCityLevel(temp["receiptPlace"].ToString()) == "4")
-                        {
-                            if (receiptAmount > 100 * interval_time)
-                            {
-                                result.Add("code", 400);
-                                result.Add("msg", "住宿费不能超过一晚100");
-
-                                return result.ToString();
+                                    return result.ToString();
+                                }
                             }
                         }
                     }
                 }
             }
+
             // 计算税率
             if (temp["receiptPerson"].ToString() != "" && temp["receiptPerson"].ToString() != "无")
             {
                 dt = SqlHelper.Find(string.Format("select 1 from users where userName = '{0}'", temp["receiptPerson"].ToString())).Tables[0];
 
-                if (dt.Rows.Count > 0 && temp["receiptType"].ToString().Equals("出差车船费"))
+                if (dt.Rows.Count > 0 && (temp["receiptType"].ToString().Equals("出差车船费") || temp["receiptType"].ToString().Equals("培训费")))
                 {
                     if (temp["feeType"].ToString().Equals("火车票"))
                     {
@@ -875,7 +990,7 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
                     }
                     else if (temp["feeType"].ToString().Equals("飞机票"))
                     {
-                        temp["receiptTax"] = Math.Round(double.Parse(temp["receiptAmount"].ToString()) / 1.09 * 0.09, 3);
+                        temp["receiptTax"] = Math.Round((double.Parse(temp["receiptAmount"].ToString())-50) / 1.09 * 0.09, 3);
                     }
                     else if (temp["feeType"].ToString().Equals("汽车票"))
                     {
@@ -912,7 +1027,7 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
         if (msg.Contains("操作成功"))
         {
             result.Add("code", 200);
-            result.Add("msg", "操作成功");
+            result.Add("msg", batchNo);
 
             // 更新单据可用额度
             foreach (string code in codeList)
@@ -921,13 +1036,17 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
                 string tempSql = "";
                 if (remain_fee_amount >= totalReceiptAmount)
                 {
-                    tempSql = string.Format("update yl_reimburse set remain_fee_amount = {0} where code = '{1}'", (remain_fee_amount - totalReceiptAmount), code);
+                    tempSql = string.Format("update yl_reimburse set remain_fee_amount = {0} where code = '{1}';", (remain_fee_amount - totalReceiptAmount), code);
+                    tempSql += string.Format("delete from yl_reimburse_detail_relevance where batchNo = '{0}' and reimburseCode = '{1}';", batchNo, code);
+                    tempSql += string.Format("insert into yl_reimburse_detail_relevance (batchNo,reimburseCode,amount) values ('{0}','{1}',{2});", batchNo, code, totalReceiptAmount);
                     SqlHelper.Exce(tempSql);
                     break;
                 }
                 else
                 {
-                    tempSql = string.Format("update yl_reimburse set remain_fee_amount = {0} where code = '{1}'", 0, code);
+                    tempSql = string.Format("update yl_reimburse set remain_fee_amount = {0} where code = '{1}';", 0, code);
+                    tempSql += string.Format("delete from yl_reimburse_detail_relevance where batchNo = '{0}' and reimburseCode = '{1}';", batchNo, code);
+                    tempSql += string.Format("insert into yl_reimburse_detail_relevance (batchNo,reimburseCode,amount) values ('{0}','{1}',{2});", batchNo, code, remain_fee_amount);
                     totalReceiptAmount -= remain_fee_amount;
                     SqlHelper.Exce(tempSql);
                 }
@@ -956,8 +1075,12 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
     {
         string batchNo = Request.Form["batchNo"];
 
-        string sql = string.Format("select feeType,receiptType,receiptCode,receiptNum,receiptDate,activityDate,activityEndDate,receiptAmount,receiptPerson,relativePerson," +
-            "receiptTax,receiptPlace,receiptDesc,receiptAttachment,sellerRegisterNum from yl_reimburse_detail where batchNo = '{0}'", batchNo);
+        string sql = string.Format("update yl_reimburse_detail set status = '草稿' where batchNo = '{0}';", batchNo);
+
+        SqlHelper.Exce(sql);
+
+        sql = string.Format("select relativePerson,receiptAttachment,feeType,receiptDate,activityDate,receiptCode,receiptAmount,receiptTax,receiptPlace," +
+            "receiptNum,receiptPerson,activityEndDate,sellerRegisterNum,originAmount,receiptType from yl_reimburse_detail where batchNo = '{0}'", batchNo);
 
         DataTable dt = SqlHelper.Find(sql).Tables[0];
 
@@ -1039,14 +1162,14 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
         //图片路径
         String oldPath = picPath;
         //新图片路径
-        String newPath = System.IO.Path.GetExtension(oldPath);
+        String newPath = Path.GetExtension(oldPath);
         //计算新的文件名，在旧文件名后加_new
         newPath = oldPath.Substring(0, oldPath.Length - newPath.Length) + "_" + index + newPath;
         //定义截取矩形
-        System.Drawing.Rectangle cropArea = new System.Drawing.Rectangle(x, y, width, height);
+        Rectangle cropArea = new Rectangle(x, y, width, height);
         //要截取的区域大小
         //加载图片
-        System.Drawing.Image img = System.Drawing.Image.FromStream(new System.IO.MemoryStream(System.IO.File.ReadAllBytes(oldPath)));
+        Image img = Image.FromStream(new MemoryStream(File.ReadAllBytes(oldPath)));
         //判断超出的位置否
         if ((img.Width < x + width) || img.Height < y + height)
         {
@@ -1055,11 +1178,11 @@ public partial class mFinanceReimburseDetail : System.Web.UI.Page
             return "";
         }
         //定义Bitmap对象
-        System.Drawing.Bitmap bmpImage = new System.Drawing.Bitmap(img);
+        Bitmap bmpImage = new Bitmap(img);
         //进行裁剪
-        System.Drawing.Bitmap bmpCrop = bmpImage.Clone(cropArea, bmpImage.PixelFormat);
+        Bitmap bmpCrop = bmpImage.Clone(cropArea, bmpImage.PixelFormat);
         //保存成新文件
-        bmpCrop.Save(newPath);
+        bmpCrop.Save(newPath, ImageFormat.Jpeg);
         //释放对象
         img.Dispose();
         bmpCrop.Dispose();
