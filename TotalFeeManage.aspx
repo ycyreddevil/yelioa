@@ -217,34 +217,34 @@
 
             parent.Loading(false);
 
-            //$.post('TotalFeeManage.aspx', {
-            //    action: 'getTotalTaxDatagrid',
-            //    type: $("#type").val(),
-            //    startTm: $('#date').datebox('getValue') + '-10',
-            //    endTm: d.getFullYear() + "-" + (d.getMonth() + 1) + '-01'
-            //}, function (res) {
-            //    parent.Loading(false);
-            //    data = $.parseJSON(res);
-            //    if (data.length == 0) {
-            //        $('#dg1').datagrid({ columns: [] }).datagrid("loadData", data);
-            //        return;
-            //    }
-            //    var columns = new Array();
-            //    // 获取所有的key
-            //    var keyList = Object.keys(data[0])
-            //    $.each(keyList, (key, value) => {
-            //        var column = {};
-            //        column["field"] = value;
-            //        column["title"] = value;
-            //        column["width"] = 100;
-            //        column["align"] = 'center';
-            //        column["sortable"] = true;
-            //        columns.push(column);
-            //    });
-            //    $('#dg1').datagrid({
-            //        columns: [columns]
-            //    }).datagrid("loadData", data);
-            //});
+            $.post('TotalFeeManage.aspx', {
+                action: 'getTotalTaxDatagrid',
+                type: $("#type").val(),
+                startTm: $('#startTm').datebox('getValue'),
+                endTm: $('#endTm').datebox('getValue')
+            }, function (res) {
+                parent.Loading(false);
+                data = $.parseJSON(res);
+                if (data.length == 0) {
+                    $('#dg1').datagrid({ columns: [] }).datagrid("loadData", data);
+                    return;
+                }
+                var columns = new Array();
+                // 获取所有的key
+                var keyList = Object.keys(data[0])
+                $.each(keyList, (key, value) => {
+                    var column = {};
+                    column["field"] = value;
+                    column["title"] = value;
+                    column["width"] = 100;
+                    column["align"] = 'center';
+                    column["sortable"] = true;
+                    columns.push(column);
+                });
+                $('#dg1').datagrid({
+                    columns: [columns]
+                }).datagrid("loadData", data);
+            });
         });
     }
 

@@ -874,6 +874,16 @@ public partial class TotalFeeManage : System.Web.UI.Page
             " where t2.receiptType = '{2}' and t2.status = '同意' order by t1.name ", startTm, endTm, header, companyCondition, departmentCondition);
     }
 
+    private string getTaxSql(string startTm, string endTm, string companyCondition, string departmentCondition)
+    {
+        return string.Format("select distinct t2.activityDate 日期, t1.name 人员名称, t2.originAmount 含税金额, t2.receiptTax 税额, (t2.originAmount - t2.receiptTax) 不含税金额, " +
+        "round(t2.receiptTax/(t2.originAmount - t2.receiptTax), 2) 税率, t2.feeType 票据类型, t2.receiptNum 票号 " +
+        "from (select * from yl_reimburse where status = '已审批' and (account_result != '拒绝' or account_result is null) " +
+        "and fee_company {2} and department {3}) t1 left join (select * from yl_reimburse_detail where createTime between '{0}' and '{1}') t2 " +
+        "on t2.code like concat('%', t1.code, '%') where t2.status = '同意' and t2.receiptTax != 0 and t2.receiptTax is not null order by t1.name"
+        , startTm, endTm, companyCondition, departmentCondition);
+    }
+
     private string getTotalTaxDatagrid()
     {
         string startTm = Request.Form["startTm"] + " 00:00:00";
@@ -885,95 +895,59 @@ public partial class TotalFeeManage : System.Web.UI.Page
         if (type == "1")
         {
             // 业力职能
-            sql = string.Format("select distinct t2.activityDate 日期, t1.name 人员名称, t2.originAmount 含税金额, t2.receiptTax 税额, (t2.originAmount - t2.receiptTax) 不含税金额, round(t2.receiptTax/(t2.originAmount - t2.receiptTax), 2) 税率, t2.feeType 票据类型, t2.receiptNum 票号 " +
-                "from (select * from yl_reimburse where status = '已审批' and (account_result != '拒绝' or account_result is null) " +
-                "and fee_company like '江西业力医疗器械%' and department not like '%营销中心%') t1 left join (select * from yl_reimburse_detail where createTime between '{0}' and '{1}') t2 on t2.code like concat('%', t1.code, '%') " +
-                " where t2.status = '同意' and t2.receiptTax != 0 and t2.receiptTax is not null order by t1.name"
-                , startTm, endTm);
+            sql = getTaxSql(startTm, endTm, "like '江西业力医疗器械%'", "not like '%营销中心%'");
         }
         else if (type == "2")
         {
-            sql = string.Format("select distinct t2.activityDate 日期, t1.name 人员名称, t2.originAmount 含税金额, t2.receiptTax 税额, (t2.originAmount - t2.receiptTax) 不含税金额, round(t2.receiptTax/(t2.originAmount - t2.receiptTax), 2) 税率, t2.feeType 票据类型, t2.receiptNum 票号 " +
-                "from (select * from yl_reimburse where status = '已审批' and (account_result != '拒绝' or account_result is null) " +
-                "and fee_company like '江西业力医疗器械%' and department like '%营销中心%') t1 left join (select * from yl_reimburse_detail where createTime between '{0}' and '{1}') t2 on t2.code like concat('%', t1.code, '%') " +
-                " where t2.status = '同意' and t2.receiptTax != 0 and t2.receiptTax is not null order by t1.name"
-                , startTm, endTm);
+            sql = getTaxSql(startTm, endTm, "like '江西业力医疗器械%'", "like '%营销中心%'");
         }
         else if (type == "3")
         {
+            sql = getTaxSql(startTm, endTm, "like '南昌市中申%'", "not like '%营销中心%'");
             // 中申职能
-            sql = string.Format("select distinct t2.activityDate 日期, t1.name 人员名称, t2.originAmount 含税金额, t2.receiptTax 税额, (t2.originAmount - t2.receiptTax) 不含税金额, round(t2.receiptTax/(t2.originAmount - t2.receiptTax), 2) 税率, t2.feeType 票据类型, t2.receiptNum 票号 " +
-                "from (select * from yl_reimburse where status = '已审批' and (account_result != '拒绝' or account_result is null) " +
-                "and fee_company like '南昌市中申%' and department not like '%营销中心%') t1 left join (select * from yl_reimburse_detail where createTime between '{0}' and '{1}') t2 on t2.code like concat('%', t1.code, '%') " +
-                " where t2.status = '同意' and t2.receiptTax != 0 and t2.receiptTax is not null order by t1.name "
-                , startTm, endTm);
         }
         else if (type == "4")
         {
+            sql = getTaxSql(startTm, endTm, "like '南昌市中申%'", "like '%营销中心%'");
             // 中申销售
-            sql = string.Format("select distinct t2.activityDate 日期, t1.name 人员名称, t2.originAmount 含税金额, t2.receiptTax 税额, (t2.originAmount - t2.receiptTax) 不含税金额, round(t2.receiptTax/(t2.originAmount - t2.receiptTax), 2) 税率, t2.feeType 票据类型, t2.receiptNum 票号 " +
-                "from (select * from yl_reimburse where status = '已审批' and (account_result != '拒绝' or account_result is null) " +
-                "and fee_company like '南昌市中申%' and department like '%营销中心%') t1 left join (select * from yl_reimburse_detail where createTime between '{0}' and '{1}') t2 on t2.code like concat('%', t1.code, '%') " +
-                " where t2.status = '同意' and t2.receiptTax != 0 and t2.receiptTax is not null order by t1.name"
-                , startTm, endTm);
         }
         else if (type == "5")
         {
+            sql = getTaxSql(startTm, endTm, "like '江西东森科技发展%'", "like '%营销中心%'");
             // 东森销售
-            sql = string.Format("select distinct t2.activityDate 日期, t1.name 人员名称, t2.originAmount 含税金额, t2.receiptTax 税额, (t2.originAmount - t2.receiptTax) 不含税金额, round(t2.receiptTax/(t2.originAmount - t2.receiptTax), 2) 税率, t2.feeType 票据类型, t2.receiptNum 票号 " +
-                "from (select * from yl_reimburse where status = '已审批' and (account_result != '拒绝' or account_result is null) " +
-                "and fee_company like '江西东森科技发展%' and department like '%营销中心%') t1 left join (select * from yl_reimburse_detail where createTime between '{0}' and '{1}') t2 on t2.code like concat('%', t1.code, '%') " +
-                " where t2.status = '同意' and t2.receiptTax != 0 and t2.receiptTax is not null order by t1.name"
-                , startTm, endTm);
         }
         else if (type == "6")
         {
+            sql = getTaxSql(startTm, endTm, "like '江西东森科技发展%'", "not like '%营销中心%'");
             // 东森职能
-            sql = string.Format("select distinct t2.activityDate 日期, t1.name 人员名称, t2.originAmount 含税金额, t2.receiptTax 税额, (t2.originAmount - t2.receiptTax) 不含税金额, round(t2.receiptTax/(t2.originAmount - t2.receiptTax), 2) 税率, t2.feeType 票据类型, t2.receiptNum 票号 " +
-                "from (select * from yl_reimburse where status = '已审批' and (account_result != '拒绝' or account_result is null) " +
-                "and fee_company like '江西东森科技发展%' and department not like '%营销中心%') t1 left join (select * from yl_reimburse_detail where createTime between '{0}' and '{1}') t2 on t2.code like concat('%', t1.code, '%') " +
-                " where t2.status = '同意' and t2.receiptTax != 0 and t2.receiptTax is not null order by t1.name"
-                , startTm, endTm);
         }
         else if (type == "7")
         {
-            sql = string.Format("select distinct t2.activityDate 日期, t1.name 人员名称, t2.originAmount 含税金额, t2.receiptTax 税额, (t2.originAmount - t2.receiptTax) 不含税金额, round(t2.receiptTax/(t2.originAmount - t2.receiptTax), 2) 税率, t2.feeType 票据类型, t2.receiptNum 票号 " +
-                "from (select * from yl_reimburse where status = '已审批' and (account_result != '拒绝' or account_result is null) " +
-                "and fee_company = '江西业力科技集团有限公司') t1 left join (select * from yl_reimburse_detail where createTime between '{0}' and '{1}') t2 on t2.code like concat('%', t1.code, '%') " +
-                " where t2.status = '同意' and t2.receiptTax != 0 and t2.receiptTax is not null order by t1.name"
-                , startTm, endTm);
+            sql = getTaxSql(startTm, endTm, "like '江西业力科技集团有限公司%'", "like '%'");
         }
         else if (type == "8")
         {
-            sql = string.Format("select distinct t2.activityDate 日期, t1.name 人员名称, t2.originAmount 含税金额, t2.receiptTax 税额, (t2.originAmount - t2.receiptTax) 不含税金额, round(t2.receiptTax/(t2.originAmount - t2.receiptTax), 2) 税率, t2.feeType 票据类型, t2.receiptNum 票号 " +
-                "from (select * from yl_reimburse where status = '已审批' and (account_result != '拒绝' or account_result is null) " +
-                "and fee_company = '南昌老康科技有限公司') t1 left join (select * from yl_reimburse_detail where createTime between '{0}' and '{1}') t2 on t2.code like concat('%', t1.code, '%') " +
-                " where t2.status = '同意' and t2.receiptTax != 0 and t2.receiptTax is not null order by t1.name"
-                , startTm, endTm);
+            sql = getTaxSql(startTm, endTm, "= '南昌老康科技有限公司'", "like '%营销中心%'");
         }
         else if (type == "9")
         {
-            sql = string.Format("select distinct t2.activityDate 日期, t1.name 人员名称, t2.originAmount 含税金额, t2.receiptTax 税额, (t2.originAmount - t2.receiptTax) 不含税金额, round(t2.receiptTax/(t2.originAmount - t2.receiptTax), 2) 税率, t2.feeType 票据类型, t2.receiptNum 票号 " +
-                "from (select * from yl_reimburse where status = '已审批' and (account_result != '拒绝' or account_result is null) " +
-                "and fee_company = '天津吉诺泰普生物科技有限公司') t1 left join (select * from yl_reimburse_detail where createTime between '{0}' and '{1}') t2 on t2.code like concat('%', t1.code, '%') " +
-                " where t2.status = '同意' and t2.receiptTax != 0 and t2.receiptTax is not null order by t1.name"
-                , startTm, endTm);
+            sql = getTaxSql(startTm, endTm, "= '天津吉诺泰普生物科技有限公司'", "like '%'");
         }
         else if (type == "10")
         {
-            sql = string.Format("select distinct t2.activityDate 日期, t1.name 人员名称, t2.originAmount 含税金额, t2.receiptTax 税额, (t2.originAmount - t2.receiptTax) 不含税金额, round(t2.receiptTax/(t2.originAmount - t2.receiptTax), 2) 税率, t2.feeType 票据类型, t2.receiptNum 票号 " +
-                "from (select * from yl_reimburse where status = '已审批' and (account_result != '拒绝' or account_result is null) " +
-                "and fee_company = '南昌业力医学检验实验室有限公司') t1 left join (select * from yl_reimburse_detail where createTime between '{0}' and '{1}') t2 on t2.code like concat('%', t1.code, '%') " +
-                " where t2.status = '同意' and t2.receiptTax != 0 and t2.receiptTax is not null order by t1.name"
-                , startTm, endTm);
+            sql = getTaxSql(startTm, endTm, "= '南昌业力医学检验实验室有限公司'", "like '%'");
         }
         else if (type == "11")
         {
-            sql = string.Format("select distinct t2.activityDate 日期, t1.name 人员名称, t2.originAmount 含税金额, t2.receiptTax 税额, (t2.originAmount - t2.receiptTax) 不含税金额, round(t2.receiptTax/(t2.originAmount - t2.receiptTax), 2) 税率, t2.feeType 票据类型, t2.receiptNum 票号 " +
-                "from (select * from yl_reimburse where status = '已审批' and (account_result != '拒绝' or account_result is null) " +
-                "and fee_company = '九江傲沐科技发展有限公司') t1 left join (select * from yl_reimburse_detail where createTime between '{0}' and '{1}') t2 on t2.code like concat('%', t1.code, '%') " +
-                " where t2.status = '同意' and t2.receiptTax != 0 and t2.receiptTax is not null order by t1.name"
-                , startTm, endTm);
+            sql = getTaxSql(startTm, endTm, "= '九江傲沐科技发展有限公司'", "like '%营销中心%'");
+        }
+        else if (type == "12")
+        {
+            sql = getTaxSql(startTm, endTm, "= '南昌老康科技有限公司'", "not like '%营销中心%'");
+        }
+        else if (type == "13")
+        {
+            sql = getTaxSql(startTm, endTm, "= '九江傲沐科技发展有限公司'", "not like '%营销中心%'");
         }
 
         return JsonHelper.DataTable2Json(SqlHelper.Find(sql).Tables[0]);
@@ -1077,62 +1051,6 @@ public partial class TotalFeeManage : System.Web.UI.Page
 
     private string importVoucher()
     {
-        //SignatureManage manage = new SignatureManage();
-
-        //string authorization = manage.CreateAuthorizationHeader("f1646512-a188-4a67-8d7d-42dc8cf05ce9", "agtcii", "", "C:/Users/Administrator/Desktop/OpenAPI认证资料/cjet_pri.pem", null);
-
-        //JObject nvc = new JObject
-        //{
-        //    { "userName", "rjcs" },
-        //    { "password", manage.GetMd5("ycy111") },
-        //    { "accNum", "201902" }
-        //};
-
-        //NameValueCollection nvc2 = new NameValueCollection();
-
-        //nvc2.Add("_args", nvc.ToString());
-
-        //var wc = new WebClient();
-
-        //wc.Headers.Add(HttpRequestHeader.Authorization, authorization);
-
-        //string res = HttpHelper.Post("http://17t7n77466.51mypc.cn/TPlus/api/v2/collaborationapp/GetRealNameTPlusToken?IsFree=1", nvc2, wc);
-
-        //OpenAPI api = new OpenAPI("http://17t7n77466.51mypc.cn/TPlus/api/v1/", new Credentials()
-        //{
-        //    AppKey = "f1646512-a188-4a67-8d7d-42dc8cf05ce9",
-        //    AppSecret = "agtcii",
-        //    UserName = "rjcs",
-        //    Password = manage.GetMd5("ycy111"),
-        //    AccountNumber = "201901",
-        //    LoginDate = DateTime.Now.ToString("yyyy-MM-dd")
-        //});
-
-        //api.ConnectTest();
-        //api.GetToken();
-
-        //api.Call("doc/Create",                    //调用凭证的创建服务
-        //    @"{  
-        //dto: {
-        //    ExternalCode:""002"",
-        //    DocType: { Code: ""记"" }, 
-        //    VoucherDate: """ + DateTime.Now.ToString("yyyy-MM-dd") + @""",
-        //    Entrys: [
-        //        { 
-        //            Account: { ""Code"": ""1001"" },
-        //            Currency: { ""Code"": ""RMB"" },
-        //            Summary: ""提现"", AmountCr: ""100""
-        //        }
-        //        , { 
-        //            Account: { ""Code"": ""1002"" },
-        //            Currency: { ""Code"": ""RMB"" },
-        //            Summary: ""提现"", AmountDr: ""100""
-        //        }]
-        //    }
-        //}");
-        
-
-
         return null;
     }
 
