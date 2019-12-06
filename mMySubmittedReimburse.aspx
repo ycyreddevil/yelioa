@@ -887,10 +887,14 @@
                 dataType: 'json',
                 type: 'post',
                 success: function (data) {
+                    Loading(false);
+                    if (data.ErrCode !== 0) {
+                        $.messager.alert('提示', data.ErrMsg, 'info')
+                        return
+                    }
                     statistics = JSON.parse(data.statistics).rows;
                     $('#dg').datagrid("loadData", statistics);
                     detail = JSON.parse(data.detail).rows;
-                    Loading(false);
                 }
             })
         }

@@ -590,7 +590,8 @@ public class MobileReimburseSrv
             "prepaidAmount,sum(yr1.pay_amount) payAmount FROM yl_reimburse yr1 where year(yr1.lmt) = '{1}' and month(yr1.lmt) = '{2}' and yr1.name = '{3}' and " +
             "(yr1.status = '审批中' or yr1.status = '已审批') and (yr1.account_result = '同意' or yr1.account_result is null) group by yr1.{0};", type, year, month, userName, type);
         sql += string.Format("SELECT distinct yr.code,yr.`name`,yr.fee_department,yr.fee_detail,yr.remark,yr.fee_amount,yr.actual_fee_amount" +
-            " FROM yl_reimburse yr where year(yr.lmt) = '{1}' and month(yr.lmt) = '{2}' and yr.name = '{3}' and (yr.status = '审批中' or yr.status = '已审批') and (yr.account_result = '同意' or yr.account_result is null);", type, year, month, userName, type);
+            " FROM yl_reimburse yr where year(yr.lmt) = '{1}' and month(yr.lmt) = '{2}' and yr.name = '{3}' and (yr.status = '审批中' or yr.status = '已审批') " +
+            "and (yr.account_result = '同意' or yr.account_result is null)", type, year, month, userName, type);
 
         return SqlHelper.Find(sql, ref msg);
     }
