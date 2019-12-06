@@ -718,19 +718,19 @@ public partial class TotalFeeManage : System.Web.UI.Page
 
             double isPrepaidAmount = double.Parse(ds.Tables[0].Rows[0][0].ToString());
             double loanAmount = double.Parse(ds.Tables[1].Rows[0][0].ToString());
-            double actualAmount = double.Parse(ds.Tables[2].Rows[0][0].ToString());
+            //double actualAmount = double.Parse(ds.Tables[2].Rows[0][0].ToString());
 
             temp.Add("核销", isPrepaidAmount);
             temp.Add("备用金", loanAmount);
-            temp.Add("实报金额", actualAmount);
+            //temp.Add("实报金额", actualAmount);
 
             double total = double.Parse(temp["总计"].ToString());
 
             total -= isPrepaidAmount;
 
             temp["总计"] = total;
-            temp["应付金额"] = actualAmount - loanAmount;
-            temp["实付金额"] = actualAmount - loanAmount;
+            temp["应付金额"] = total - loanAmount;
+            temp["实付金额"] = total - loanAmount;
         }
 
         List<Dictionary<string, object>> finalResult = new List<Dictionary<string, object>>();
@@ -749,7 +749,7 @@ public partial class TotalFeeManage : System.Web.UI.Page
                     keyList.Add(key);
                 }
 
-                if (key != "核销" && key != "总计" && key != "税额" && key != "备用金" && key != "应付金额" && key != "实报金额" && key != "实付金额")
+                if (key != "核销" && key != "总计" && key != "税额" && key != "备用金" && key != "应付金额" && key != "实付金额")
                 {
                     tempDict.Add(key, temp[key]);
                 }
@@ -758,7 +758,6 @@ public partial class TotalFeeManage : System.Web.UI.Page
             tempDict.Add("税额", temp["税额"]);
             tempDict.Add("核销", temp["核销"]);
             tempDict.Add("总计", temp["总计"]);
-            tempDict.Add("实报金额", temp["实报金额"]);
             tempDict.Add("备用金", temp["备用金"]);
             tempDict.Add("应付金额", temp["应付金额"]);
             tempDict.Add("实付金额", temp["实付金额"]);
@@ -847,39 +846,55 @@ public partial class TotalFeeManage : System.Web.UI.Page
     private string getSql(string startTm, string endTm, string name, string fee_department, string fee_detail, string condition)
     {
         string sql = string.Format("select ifnull(sum(temp.receiptAmount), 0) from (select distinct t1.id,t1.code,t1.actual_fee_amount,t2.receiptAmount from (select * from yl_reimburse where name = '{2}' and status = '已审批' " +
-        "and (account_result != '拒绝' or account_result is null) and fee_company {5}) t1 inner join " +
-        "(select ReceiptAmount,status,code from yl_reimburse_detail where createTime between '{0}' and '{1}') t2  on t2.code like concat('%', t1.code, '%') " +
+        "and (account_result != '拒绝' or account_result is null) and fee_company {5} and month('{1}') = month(actual_fee_amount_time)) t1 inner join " +
+        "(select ReceiptAmount,status,code from yl_reimburse_detail) t2  on t2.code like concat('%', t1.code, '%') " +
         "where t2.status = '同意' and t1.isPrepaid = '1' and t1.fee_department = '{3}' and t1.fee_detail like '{4}%') temp; ", startTm, endTm, name, fee_department, fee_detail, condition);
 
         sql += string.Format("select ifnull(sum(temp.amount), 0) from (select distinct t1.id,t1.code,t1.actual_fee_amount,t3.amount from (select * from yl_reimburse where name = '{2}' and status = '已审批' " +
-        "and (account_result != '拒绝' or account_result is null) and fee_company {5}) t1 inner join " +
-        "(select ReceiptAmount,status,code from yl_reimburse_detail where createTime between '{0}' and '{1}') t2 on t2.code like concat('%', t1.code, '%') " +
-        "inner join yl_reimburse_loan t3 on t1.code = t3.reimburseCode " +
-        "where t2.status = '同意' and t1.fee_department = '{3}' and t1.fee_detail like '{4}%') temp; ", startTm, endTm, name, fee_department, fee_detail, condition);
+        "and (account_result != '拒绝' or account_result is null) and fee_company {5} and month('{1}') = month(actual_fee_amount_time)) t1 inner join " +
+        "(select ReceiptAmount,status,code from yl_reimburse_detail) t2 on t2.code like concat('%', t1.code, '%') " +
+        "inner join yl_reimburse_loan t3 on t1.code = t3.reimburseCode where t2.status = '同意' and t1.fee_department = '{3}' and t1.fee_detail like '{4}%') temp ", startTm, endTm, name, fee_department, fee_detail, condition);
 
-        sql += string.Format("select ifnull(sum(temp.actual_fee_amount), 0) from (select distinct t1.id,t1.code,t1.actual_fee_amount from (select * from yl_reimburse where name = '{2}' and status = '已审批' " +
-        "and (account_result != '拒绝' or account_result is null) and fee_company {5}) t1 inner join " +
-        "(select ReceiptAmount,status,code from yl_reimburse_detail where createTime between '{0}' and '{1}') t2  on t2.code like concat('%', t1.code, '%') " +
-        "where t2.status = '同意' and t1.fee_department = '{3}' and t1.fee_detail like '{4}%') temp", startTm, endTm, name, fee_department, fee_detail, condition);
+        //sql += string.Format("select ifnull(sum(temp.actual_fee_amount), 0) from (select distinct t1.id,t1.code,t1.actual_fee_amount from (select * from yl_reimburse where name = '{2}' and status = '已审批' " +
+        //"and (account_result != '拒绝' or account_result is null) and fee_company {5}) t1 inner join " +
+        //"(select ReceiptAmount,status,code from yl_reimburse_detail where createTime between '{0}' and '{1}') t2  on t2.code like concat('%', t1.code, '%') " +
+        //"where t2.status = '同意' and t1.fee_department = '{3}' and t1.fee_detail like '{4}%') temp", startTm, endTm, name, fee_department, fee_detail, condition);
 
         return sql;
     }
 
+    /// <summary>
+    /// 汇总表总sql
+    /// </summary>
+    /// <param name="startTm"></param>
+    /// <param name="endTm"></param>
+    /// <param name="header"></param>
+    /// <param name="companyCondition"></param>
+    /// <param name="departmentCondition"></param>
+    /// <returns></returns>
     private string getTotalSql(string startTm, string endTm, string header, string companyCondition, string departmentCondition)
     {
-        return string.Format("select * from (select a.id id1,a.code code1,a.name,a.fee_department,REVERSE(SUBSTR(REVERSE(a.fee_detail) FROM " +
+        return string.Format("select * from (select a.id id1,a.code code1,a.name,a.fee_department,a.actual_fee_amount_time,REVERSE(SUBSTR(REVERSE(a.fee_detail) FROM " +
             "INSTR(REVERSE(a.fee_detail),'-')+1)) fee_detail from yl_reimburse a where status = '已审批' and (account_result != '拒绝' or account_result is null) " +
-            "and fee_company {3} and department {4}) t1 left join (select ReceiptTax,receiptType,ReceiptAmount,status,code,id " +
-            "from yl_reimburse_detail where createTime between '{0}' and '{1}') t2 on t2.code like concat('%', t1.code1, '%') " +
+            "and fee_company {3} and department {4} and month('{1}') = month(actual_fee_amount_time)) t1 left join (select ReceiptTax,receiptType,ReceiptAmount,status,code,id " +
+            "from yl_reimburse_detail ) t2 on t2.code like concat('%', t1.code1, '%') " +
             " where t2.receiptType = '{2}' and t2.status = '同意' order by t1.name ", startTm, endTm, header, companyCondition, departmentCondition);
     }
 
+    /// <summary>
+    /// 税额表sql
+    /// </summary>
+    /// <param name="startTm"></param>
+    /// <param name="endTm"></param>
+    /// <param name="companyCondition"></param>
+    /// <param name="departmentCondition"></param>
+    /// <returns></returns>
     private string getTaxSql(string startTm, string endTm, string companyCondition, string departmentCondition)
     {
         return string.Format("select distinct t2.activityDate 日期, t1.name 人员名称, t2.originAmount 含税金额, t2.receiptTax 税额, (t2.originAmount - t2.receiptTax) 不含税金额, " +
         "round(t2.receiptTax/(t2.originAmount - t2.receiptTax), 2) 税率, t2.feeType 票据类型, t2.receiptNum 票号 " +
         "from (select * from yl_reimburse where status = '已审批' and (account_result != '拒绝' or account_result is null) " +
-        "and fee_company {2} and department {3}) t1 left join (select * from yl_reimburse_detail where createTime between '{0}' and '{1}') t2 " +
+        "and fee_company {2} and department {3}) t1 left join (select code,activityDate,originAmount,receiptTax,feeType,receiptNum,status from yl_reimburse_detail where createTime between '{0}' and '{1}') t2 " +
         "on t2.code like concat('%', t1.code, '%') where t2.status = '同意' and t2.receiptTax != 0 and t2.receiptTax is not null order by t1.name"
         , startTm, endTm, companyCondition, departmentCondition);
     }

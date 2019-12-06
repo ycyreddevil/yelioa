@@ -103,16 +103,16 @@ public partial class FinancialReimburseManage : System.Web.UI.Page
         string sql = "";
         if (dt != null)
         {
-            ArrayList list = new ArrayList();
+            List<Dictionary<string, object>> list = new List<Dictionary<string, object>>();
 
             foreach (DataRow row in dt.Rows)
             {
-                Dictionary<string, string> dict = new Dictionary<string, string>();
+                Dictionary<string, object> dict = new Dictionary<string, object>();
 
                 dict.Add("code", row[0].ToString());
                 dict.Add("actual_fee_amount", row[1].ToString());
-                //dict.Add("name", row[2].ToString());
                 dict.Add("approver", user.userName.ToString());
+                dict.Add("actual_fee_amount_time", DateTime.Now);
 
                 list.Add(dict);
             }
@@ -297,11 +297,11 @@ public partial class FinancialReimburseManage : System.Web.UI.Page
             originFeeList = JsonHelper.DeserializeJsonToObject<List<string>>(originFees);
         }
 
-        ArrayList list = new ArrayList();
+        List<Dictionary<string, object>> list = new List<Dictionary<string, object>>();
 
         for (int i = 0; i < codeList.Count; i++)
         {
-            Dictionary<string, string> dict = new Dictionary<string, string>();
+            Dictionary<string, object> dict = new Dictionary<string, object>();
 
             dict.Add("code", codeList[i]);
 

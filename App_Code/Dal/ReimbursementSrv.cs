@@ -289,18 +289,19 @@ public class ReimbursementSrv
             return ds.Tables[0];
     }
 
-    public static string updateActualFee(ArrayList list)
+    public static string updateActualFee(List<Dictionary<string, object>> list)
     {
-        List<string> conditionList = new List<string>();
-        for (int i = 0; i < list.Count; i++)
+        string sql = string.Empty;
+        foreach (Dictionary<string, object> dict in list)
         {
-            Dictionary<string, string> dict = (Dictionary<string, string>)list[i];
-            string condition = string.Format(" where code = '{0}'", dict["code"]);
-            dict.Remove("code");
-            
-            conditionList.Add(condition);
+            double actual_fee_amount = double.Parse(dict["actual_fee_amount"].ToString());
+            string code = dict["code"].ToString();
+            string actual_fee_amount_time = dict["actual_fee_amount_time"].ToString();
+
+            sql += string.Format("update yl_reimburse set actual_fee_amount = actual_fee_amount + {0}, actual_fee_amount_time = '{1}' where code = '{2}';", actual_fee_amount, actual_fee_amount_time, code);
         }
-        string sql = SqlHelper.GetUpdateString(list, "yl_reimburse", conditionList);
+
+        sql = sql.Substring(0, sql.Length - 1);
         return SqlHelper.Exce(sql);
     }
 

@@ -191,28 +191,11 @@ public class ReimbursementManage
         return res;
     }
 
-    public static string updateActualFee(ArrayList list)
+    public static string updateActualFee(List<Dictionary<string, object>> list)
     {
-        ArrayList codeList = new ArrayList();
-        ArrayList actualFeeList = new ArrayList();
-
-        foreach (Dictionary<string, string> dict in list)
-        {
-            if (dict != null)
-            {
-                codeList.Add(dict["code"].ToString());
-                actualFeeList.Add(dict["actual_fee_amount"].ToString());
-            }
-            else
-            {
-                codeList.Add("");
-                actualFeeList.Add("");
-            }
-        }
-
         string res = ReimbursementSrv.updateActualFee(list);
 
-        string[] msgs = res.Split(';');
+        //string[] msgs = res.Split(';');
         //DataTable dtUser = ReimbursementSrv.GetUserNameAndWxUserId();
         //WxCommon wx = new WxCommon("mMobileReimbursement",
         //    "UM0i5TXSIqQIOWk-DmUlfTqBqvZAfbZdGGDKiFZ-nRk",
