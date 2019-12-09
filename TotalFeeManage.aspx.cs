@@ -1029,7 +1029,7 @@ public partial class TotalFeeManage : System.Web.UI.Page
         {
             // 找到每个人所有发票关联的移动报销
             string sql = string.Format("select distinct t2.code,t3.wechatUserId from yl_reimburse_detail t1 " +
-                "inner join (select * from yl_reimburse where name = '{2}' and fee_detail = '{3}' and fee_department = '{4}' and fee_company = '{5}' " +
+                "inner join (select * from yl_reimburse where name = '{2}' and fee_detail like '%{3}%' and fee_department like '%{4}%' and fee_company = '{5}' " +
                 "and (month('{0}') = month(actual_fee_amount_time) - 1)) t2 on t1.code like concat('%', t2.code, '%') " +
                 "inner join users t3 on t1.submitterId = t3.userId ", startTm, null, name, feeDetailList[index], departmentList[index], company);
 
@@ -1043,7 +1043,7 @@ public partial class TotalFeeManage : System.Web.UI.Page
             List<string> sqls = new List<string>();
 
             //总出纳付款金额
-            double totalAmount = double.Parse(payAmounts[index].ToString());
+            double totalAmount = double.Parse(payAmountList[index].ToString());
 
             foreach (DataRow dr in dt.Rows)
             {
@@ -1052,10 +1052,10 @@ public partial class TotalFeeManage : System.Web.UI.Page
 
                 string code = dr[0].ToString();
 
-                string temp_sql = string.Format("select actual_fee_amount from yl_reimburse where code = '{0}'", code);
+                string temp_sql = string.Format("select actual_fee_amount from yl_reimburse where code = '{0}';", code);
                 temp_sql += string.Format("select ifnull(sum(amount),0) from yl_reimburse_loan where reimburseCode = '{0}'", code);
 
-                DataSet tempDs = SqlHelper.Find(sql);
+                DataSet tempDs = SqlHelper.Find(temp_sql);
 
                 if (tempDs == null)
                     continue;

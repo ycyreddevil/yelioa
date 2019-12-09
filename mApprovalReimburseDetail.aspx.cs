@@ -198,7 +198,7 @@ public partial class mApprovalReimburseDetail : System.Web.UI.Page
                     else
                     {
                         sql += string.Format("update yl_reimburse_loan set amount = {0} where id = {1};", amount, loanId);
-                        sql += string.Format("update wf_form_借款单 set remain_amount = 借款金额 - {0} where docCode = '{1}'", amount, loanDocCode);
+                        sql += string.Format("update wf_form_借款单 set remainAmount = remainAmount + {0} where docCode = '{1}'", aaa - amount, loanDocCode);
                         amount = 0;
                     }
                 }

@@ -118,7 +118,8 @@
                 <option value="江西业力医疗器械有限公司">江西业力医疗器械有限公司</option><option value="南昌市中申医疗器械有限公司">南昌市中申医疗器械有限公司</option><option value="江西业力科技集团有限公司">江西业力科技集团有限公司</option><option value="南昌老康科技有限公司">南昌老康科技有限公司</option>
                 <option value="天津吉诺泰普生物科技有限公司">天津吉诺泰普生物科技有限公司</option><option value="南昌业力医学检验实验室有限公司">南昌业力医学检验实验室有限公司</option><option value="九江傲沐科技发展有限公司">九江傲沐科技发展有限公司</option>
                 <option value="上海恩焯企业管理咨询中心">上海恩焯企业管理咨询中心</option><option value="上海会帆企业管理咨询中心">上海会帆企业管理咨询中心</option>
-                 </select></a></li>
+                <option value="上海灏荥企业管理咨询中心">上海灏荥企业管理咨询中心</option><option value="南昌真形生物科技有限公司">南昌真形生物科技有限公司</option> 
+                </select></a></li>
             <li>费用明细:<a id="fee_detail" style="text-align: right; width: 50%; float: right" href="javascript:void(0)"
                 onclick="openit('费用明细')">请选择</a></li>
             <li id="travelApplyLi"  style="display: none">勾选已提交的差旅申请:<a id="travelApply"

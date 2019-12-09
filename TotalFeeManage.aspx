@@ -215,6 +215,17 @@
                 //}
             });
 
+            // 加上未付金额
+            var column = {};
+            column["field"] = '未付金额';
+            column["title"] = '未付金额';
+            column["width"] = 100;
+            column["align"] = 'center';
+            column["sortable"] = true;
+            column["formatter"] = function (v, r, i) {
+                return r["应付金额"] - r["实付金额"]
+            }
+
             $('#dg').edatagrid({
                 columns: [columns]
             }).datagrid("loadData", data);
@@ -286,9 +297,9 @@
                         type: $("#type").val(),
                         feeDetails: JSON.stringify(feeDetails),
                         departments: JSON.stringify(departments),
-                        payAmount: JSON.stringify(payAmount),
-                        startTm: $('#startTm').datebox('getValue'),
-                        endTm: $('#endTm').datebox('getValue'),
+                        payAmounts: JSON.stringify(payAmounts),
+                        startTm: $('#date').datebox('getValue') + '-01',
+                        //endTm: $('#endTm').datebox('getValue'),
                     }, res => {
                         $.messager.alert('提示', '操作成功', 'info');
                     })
