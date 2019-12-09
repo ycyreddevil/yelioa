@@ -195,8 +195,9 @@ public partial class mFormListAndDetail : System.Web.UI.Page
 
                 sheet.ProtectSheet("Yelioa123");    // 加密
 
+                string companyName = dr["付款单位"].ToString();
 
-                drawWaterRemarkPath(wbHssf, Server.MapPath("~/resources/南昌业力医学检验实验室有限公司.png"));
+                drawWaterRemarkPath(wbHssf, Server.MapPath(string.Format("~/resources/{0}.png", companyName)));
 
                 byte[] data = null;
                 using (MemoryStream ms = new MemoryStream())

@@ -846,24 +846,36 @@ public partial class TotalFeeManage : System.Web.UI.Page
     /// <returns></returns>
     private string getSql(string startTm, string endTm, string name, string fee_department, string fee_detail, string condition)
     {
+        //string sql = string.Format("select ifnull(sum(temp.fee_amount), 0) from (select distinct id,code,fee_amount,actual_fee_amount_time from " +
+        //    "yl_reimburse where name = '{2}' and status = '已审批' and (account_result != '拒绝' or account_result is null) and isPrepaid = '1' and fee_department = '{3}' " +
+        //    "and fee_detail like '{4}%' and fee_company {5} and (month('{0}') = month(actual_fee_amount_time) - 1)) temp; ", startTm, endTm, name, fee_department, fee_detail, condition);
+
+        //sql += string.Format("select ifnull(sum(temp.amount), 0) from (select distinct t1.id,t1.code,t1.actual_fee_amount_time,t3.amount from " +
+        //    "yl_reimburse t1 inner join yl_reimburse_loan t3 on t1.code = t3.reimburseCode " +
+        //    "where t1.fee_company {5} and t1.name = '{2}' and t1.status = '已审批' and t1.fee_department = '{3}' and t1.fee_detail like '{4}%' and (month('{0}') = month(t1.actual_fee_amount_time) - 1)) temp; ", startTm, endTm, name, fee_department, fee_detail, condition);
+
+        //sql += string.Format("select ifnull(sum(temp.pay_amount), 0) from (select distinct id,code,pay_amount,actual_fee_amount_time from yl_reimburse " +
+        //    "where name = '{2}' and status = '已审批' and (account_result != '拒绝' or account_result is null) and fee_company {5} and (month('{0}') = month(actual_fee_amount_time) - 1) " +
+        //    "and fee_department = '{3}' and fee_detail like '{4}%') temp ", startTm, endTm, name, fee_department, fee_detail, condition);
+
         string sql = string.Format("select ifnull(sum(temp.receiptAmount), 0) from (select distinct t1.id,t1.code,t1.actual_fee_amount,t2.receiptAmount from (select * from yl_reimburse where name = '{2}' and status = '已审批' " +
         "and (account_result != '拒绝' or account_result is null) and fee_company {5} and (month('{0}') = month(actual_fee_amount_time) - 1)) t1 inner join " +
-        "(select ReceiptAmount,status,code from yl_reimburse_detail) t2  on t2.code like concat('%', t1.code, '%') " +
-        "where t2.status = '同意' and t1.isPrepaid = '1' and t1.fee_department = '{3}' and t1.fee_detail like '{4}%') temp; ", startTm, endTm, name, fee_department, fee_detail, condition);
+        "(select ReceiptAmount,status,code from yl_reimburse_detail where status = '同意' ) t2  on t2.code like concat('%', t1.code, '%') " +
+        "where t1.isPrepaid = '1' and t1.fee_department = '{3}' and t1.fee_detail like '{4}%') temp; ", startTm, endTm, name, fee_department, fee_detail, condition);
 
         sql += string.Format("select ifnull(sum(temp.amount), 0) from (select distinct t1.id,t1.code,t1.actual_fee_amount,t3.amount from (select * from yl_reimburse where name = '{2}' and status = '已审批' " +
         "and (account_result != '拒绝' or account_result is null) and fee_company {5} and (month('{0}') = month(actual_fee_amount_time) - 1)) t1 inner join " +
-        "(select ReceiptAmount,status,code from yl_reimburse_detail) t2 on t2.code like concat('%', t1.code, '%') " +
-        "inner join yl_reimburse_loan t3 on t1.code = t3.reimburseCode where t2.status = '同意' and t1.fee_department = '{3}' and t1.fee_detail like '{4}%') temp; ", startTm, endTm, name, fee_department, fee_detail, condition);
+        "(select ReceiptAmount,status,code from yl_reimburse_detail where status = '同意') t2 on t2.code like concat('%', t1.code, '%') " +
+        "inner join yl_reimburse_loan t3 on t1.code = t3.reimburseCode where t1.fee_department = '{3}' and t1.fee_detail like '{4}%') temp; ", startTm, endTm, name, fee_department, fee_detail, condition);
 
-        sql += string.Format("select ifnull(sum(temp.pay_amount), 0) from (select distinct t1.id,t1.code,t1.actual_fee_amount,t2.receiptAmount from (select * from yl_reimburse where name = '{2}' and status = '已审批' " +
-        "and (account_result != '拒绝' or account_result is null) and fee_company {5} and (month('{0}') = month(actual_fee_amount_time) - 1)) t1 inner join " +
-        "(select ReceiptAmount,status,code from yl_reimburse_detail) t2  on t2.code like concat('%', t1.code, '%') " +
-        "where t2.status = '同意' and t1.fee_department = '{3}' and t1.fee_detail like '{4}%') temp ", startTm, endTm, name, fee_department, fee_detail, condition);
-        //sql += string.Format("select ifnull(sum(temp.actual_fee_amount), 0) from (select distinct t1.id,t1.code,t1.actual_fee_amount from (select * from yl_reimburse where name = '{2}' and status = '已审批' " +
-        //"and (account_result != '拒绝' or account_result is null) and fee_company {5}) t1 inner join " +
-        //"(select ReceiptAmount,status,code from yl_reimburse_detail where createTime between '{0}' and '{1}') t2  on t2.code like concat('%', t1.code, '%') " +
-        //"where t2.status = '同意' and t1.fee_department = '{3}' and t1.fee_detail like '{4}%') temp", startTm, endTm, name, fee_department, fee_detail, condition);
+        //sql += string.Format("select ifnull(sum(temp.pay_amount), 0) from (select distinct t1.id,t1.code,t1.actual_fee_amount,t1.pay_amount from (select * from yl_reimburse where name = '{2}' and status = '已审批' " +
+        //"and (account_result != '拒绝' or account_result is null) and fee_company {5} and (month('{0}') = month(actual_fee_amount_time) - 1)) t1 inner join " +
+        //"(select ReceiptAmount,status,code from yl_reimburse_detail) t2  on t2.code like concat('%', t1.code, '%') " +
+        //"where t2.status = '同意' and t1.fee_department = '{3}' and t1.fee_detail like '{4}%') temp ", startTm, endTm, name, fee_department, fee_detail, condition);
+
+        sql += string.Format("select ifnull(sum(temp.pay_amount), 0) from (select distinct id,code,pay_amount,actual_fee_amount_time from yl_reimburse " +
+            "where name = '{2}' and status = '已审批' and (account_result != '拒绝' or account_result is null) and fee_company {5} and (month('{0}') = month(actual_fee_amount_time) - 1) " +
+            "and fee_department = '{3}' and fee_detail like '{4}%') temp ", startTm, endTm, name, fee_department, fee_detail, condition);
 
         return sql;
     }

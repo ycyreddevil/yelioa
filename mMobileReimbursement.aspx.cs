@@ -193,6 +193,7 @@ public partial class mMobileReimbursement : System.Web.UI.Page
 
                 sql += string.Format("update wf_form_借款单 set remainAmount = remainAmount + {0} where docCode = '{1}';", amount, tempCode);
             }
+            SqlHelper.Exce(sql);
         }
         return JsonHelper.SerializeObject(msg);
     }

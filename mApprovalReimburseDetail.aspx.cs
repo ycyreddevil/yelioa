@@ -166,16 +166,41 @@ public partial class mApprovalReimburseDetail : System.Web.UI.Page
             //// 给提交人发送消息
             wxNetSalesHelper.GetJsonAndSendWxMsg(dt.Rows[0][0].ToString(), "您的发票信息财务已审批通过。审批人为:" + user.userName, "http://yelioa.top//mMySubmittedReimburseDetail.aspx", "1000020");
 
-            sql = "";
-            // 如果remian_fee_amount为0 单据改成财务已审批
+            sql = string.Empty;
+            
             foreach (DataRow dr in dt.Rows)
             {
                 string tempCode = dt.Rows[0][1].ToString();
                 string remain_fee_amount = dt.Rows[0][2].ToString();
 
+                // 如果remian_fee_amount为0 单据改成财务已审批
                 if (remain_fee_amount == "0")
                 {
                     sql += string.Format("update yl_reimburse set account_approval_time = now(), account_result = '同意', account_approver = '{1}' where code = '{0}';", tempCode, user.userName);
+                }
+
+                // 修改关联备用金金额
+                double amount = double.Parse(SqlHelper.Find(string.Format("select amount from yl_reimburse_detail_relevance where batchNo = '{0}' and reimburseCode = '{1}'", batchNo, tempCode)).
+                    Tables[0].Rows[0][0].ToString());
+
+                dt = SqlHelper.Find(string.Format("select * from yl_reimburse_loan where reimburseCode = '{0}'", tempCode)).Tables[0];
+
+                foreach (DataRow tempDr in dt.Rows)
+                {
+                    double aaa = double.Parse(tempDr["amount"].ToString());
+                    string loanId = tempDr["id"].ToString();
+                    string loanDocCode = tempDr["docCode"].ToString();
+
+                    if (aaa <= amount)
+                    {
+                        amount -= aaa;
+                    }
+                    else
+                    {
+                        sql += string.Format("update yl_reimburse_loan set amount = {0} where id = {1};", amount, loanId);
+                        sql += string.Format("update wf_form_借款单 set remain_amount = 借款金额 - {0} where docCode = '{1}'", amount, loanDocCode);
+                        amount = 0;
+                    }
                 }
             }
             SqlHelper.Exce(sql);

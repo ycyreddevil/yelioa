@@ -1191,8 +1191,8 @@ public class MobileReimburseManage
             }
 
             sql += SqlHelper.GetInsertString(list, "yl_reimburse_loan");
-            SqlHelper.Exce(sql);
         }
+        SqlHelper.Exce(sql);
 
         string jObjectStr = "";
         JObject jObject = new JObject();
