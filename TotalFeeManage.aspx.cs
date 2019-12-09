@@ -502,7 +502,7 @@ public partial class TotalFeeManage : System.Web.UI.Page
     {
         //string dept = Request.Form["dept"];
         string startTm = Request.Form["startTm"] + " 00:00:00";
-        string endTm = Request.Form["endTm"] + " 23:59:59";
+        //string endTm = Request.Form["endTm"] + " 23:59:59";
         string type = Request.Form["type"].ToString();
 
         string[] salesHeader = { "出差车船费", "住宿费", "出差补贴", "实报实销", "餐费", "市内交通费", "会议费", "培训费", "办公用品", "工作餐","场地费","招待餐费","纪念品","外协劳务","外部人员机票/火车票","外部人员住宿费","外部人员交通费","学术会费","营销办公费"};
@@ -526,64 +526,64 @@ public partial class TotalFeeManage : System.Web.UI.Page
             if (type == "1")
             {
                 // 业力职能
-                sql = getTotalSql(startTm, endTm, header, "like '江西业力医疗器械%'", "not like '%营销中心%'");
+                sql = getTotalSql(startTm, null, header, "like '江西业力医疗器械%'", "not like '%营销中心%'");
             }
             else if (type == "2")
             {
                 // 业力销售
-                sql = getTotalSql(startTm, endTm, header, "like '江西业力医疗器械%'", "like '%营销中心%'");
+                sql = getTotalSql(startTm, null, header, "like '江西业力医疗器械%'", "like '%营销中心%'");
             }
             else if (type == "3")
             {
                 // 中申职能
-                sql = getTotalSql(startTm, endTm, header, "like '南昌市中申%'", "not like '%营销中心%'");
+                sql = getTotalSql(startTm, null, header, "like '南昌市中申%'", "not like '%营销中心%'");
             }
             else if (type == "4")
             {
                 // 中申销售
-                sql = getTotalSql(startTm, endTm, header, "like '南昌市中申%'", "like '%营销中心%'");
+                sql = getTotalSql(startTm, null, header, "like '南昌市中申%'", "like '%营销中心%'");
             }
             else if (type == "5")
             {
                 // 东森销售
-                sql = getTotalSql(startTm, endTm, header, "like '江西东森科技发展%'", "like '%营销中心%'");
+                sql = getTotalSql(startTm, null, header, "like '江西东森科技发展%'", "like '%营销中心%'");
             }
             else if (type == "6")
             {
                 // 东森职能
-                sql = getTotalSql(startTm, endTm, header, "like '江西东森科技发展%'", "not like '%营销中心%'");
+                sql = getTotalSql(startTm, null, header, "like '江西东森科技发展%'", "not like '%营销中心%'");
             }
             else if (type == "7")
             {
-                sql = getTotalSql(startTm, endTm, header, "= '江西业力科技集团有限公司'", "like '%'");
+                sql = getTotalSql(startTm, null, header, "= '江西业力科技集团有限公司'", "like '%'");
             }
             else if (type == "8")
             {
                 // 老康销售
-                sql = getTotalSql(startTm, endTm, header, "= '南昌老康科技有限公司'", "like '营销中心%'");
+                sql = getTotalSql(startTm, null, header, "= '南昌老康科技有限公司'", "like '营销中心%'");
             }
             else if (type == "9")
             {
-                sql = getTotalSql(startTm, endTm, header, "= '天津吉诺泰普生物科技有限公司'", "like '%'");
+                sql = getTotalSql(startTm, null, header, "= '天津吉诺泰普生物科技有限公司'", "like '%'");
             }
             else if (type == "10")
             {
-                sql = getTotalSql(startTm, endTm, header, "= '南昌业力医学检验实验室有限公司'", "like '%'");
+                sql = getTotalSql(startTm, null, header, "= '南昌业力医学检验实验室有限公司'", "like '%'");
             }
             else if (type == "11")
             {
                 // 傲沐销售
-                sql = getTotalSql(startTm, endTm, header, "= '九江傲沐科技发展有限公司'", "like '营销中心%'");
+                sql = getTotalSql(startTm, null, header, "= '九江傲沐科技发展有限公司'", "like '营销中心%'");
             }
             else if (type == "12")
             {
                 // 老康职能
-                sql = getTotalSql(startTm, endTm, header, "= '南昌老康科技有限公司'", "not like '%营销中心%'");
+                sql = getTotalSql(startTm, null, header, "= '南昌老康科技有限公司'", "not like '%营销中心%'");
             }
             else if (type == "13")
             {
                 // 傲沐职能
-                sql = getTotalSql(startTm, endTm, header, "= '九江傲沐科技发展有限公司'", "not like '%营销中心%'");
+                sql = getTotalSql(startTm, null, header, "= '九江傲沐科技发展有限公司'", "not like '%营销中心%'");
             }
 
             sql = "select name, (sum(receiptAmount)-ifnull(sum(receiptTax), 0)) amount, ifnull(sum(receiptTax), 0) tax,fee_department,fee_detail from (select * from ( " + sql + " ) tt where not exists ( select 1 from ( " + sql + " ) aaa where aaa.id = tt.id and aaa.id1 > tt.id1)) fffinal group by name,fee_department,fee_detail";
@@ -683,46 +683,47 @@ public partial class TotalFeeManage : System.Web.UI.Page
 
             if (type == "1" || type == "2")
             {
-                sql = getSql(startTm, endTm, name, fee_department, fee_detail, "like '江西业力医疗器械%'");
+                sql = getSql(startTm, null, name, fee_department, fee_detail, "like '江西业力医疗器械%'");
             }
             else if (type == "3" || type == "4")
             {
-                sql = getSql(startTm, endTm, name, fee_department, fee_detail, "like '南昌市中申%'");
+                sql = getSql(startTm, null, name, fee_department, fee_detail, "like '南昌市中申%'");
             }
             else if (type == "5" || type == "6")
             {
-                sql = getSql(startTm, endTm, name, fee_department, fee_detail, "like '江西东森科技发展%'");
+                sql = getSql(startTm, null, name, fee_department, fee_detail, "like '江西东森科技发展%'");
             }
             else if (type == "7")
             {
-                sql = getSql(startTm, endTm, name, fee_department, fee_detail, "= '江西业力科技集团有限公司'");
+                sql = getSql(startTm, null, name, fee_department, fee_detail, "= '江西业力科技集团有限公司'");
             }
             else if (type == "8" || type == "12")
             {
-                sql = getSql(startTm, endTm, name, fee_department, fee_detail, "= '南昌老康科技有限公司'");
+                sql = getSql(startTm, null, name, fee_department, fee_detail, "= '南昌老康科技有限公司'");
             }
             else if (type == "9")
             {
-                sql = getSql(startTm, endTm, name, fee_department, fee_detail, "= '天津吉诺泰普生物科技有限公司'");
+                sql = getSql(startTm, null, name, fee_department, fee_detail, "= '天津吉诺泰普生物科技有限公司'");
             }
             else if (type == "10")
             {
-                sql = getSql(startTm, endTm, name, fee_department, fee_detail, "= '南昌业力医学检验实验室有限公司'");
+                sql = getSql(startTm, null, name, fee_department, fee_detail, "= '南昌业力医学检验实验室有限公司'");
             }
             else if (type == "11" || type == "13")
             {
-                sql = getSql(startTm, endTm, name, fee_department, fee_detail, "= '九江傲沐科技发展有限公司'");
+                sql = getSql(startTm, null, name, fee_department, fee_detail, "= '九江傲沐科技发展有限公司'");
             }
 
             DataSet ds = SqlHelper.Find(sql);
 
-            double isPrepaidAmount = double.Parse(ds.Tables[0].Rows[0][0].ToString());
-            double loanAmount = double.Parse(ds.Tables[1].Rows[0][0].ToString());
+            double isPrepaidAmount = ds.Tables[0].Rows.Count == 0 ? 0 : double.Parse(ds.Tables[0].Rows[0][0].ToString());
+            double loanAmount = ds.Tables[1].Rows.Count == 0 ? 0 : double.Parse(ds.Tables[1].Rows[0][0].ToString());
+            double payAmount = ds.Tables[2].Rows.Count == 0 ? 0 : double.Parse(ds.Tables[2].Rows[0][0].ToString());
             //double actualAmount = double.Parse(ds.Tables[2].Rows[0][0].ToString());
 
             temp.Add("核销", isPrepaidAmount);
             temp.Add("备用金", loanAmount);
-            //temp.Add("实报金额", actualAmount);
+            temp.Add("实付金额", payAmount);
 
             double total = double.Parse(temp["总计"].ToString());
 
@@ -730,7 +731,7 @@ public partial class TotalFeeManage : System.Web.UI.Page
 
             temp["总计"] = total;
             temp["应付金额"] = total - loanAmount;
-            temp["实付金额"] = total - loanAmount;
+            temp["实付金额"] = payAmount == 0 ? total - loanAmount : payAmount;
         }
 
         List<Dictionary<string, object>> finalResult = new List<Dictionary<string, object>>();
@@ -846,15 +847,19 @@ public partial class TotalFeeManage : System.Web.UI.Page
     private string getSql(string startTm, string endTm, string name, string fee_department, string fee_detail, string condition)
     {
         string sql = string.Format("select ifnull(sum(temp.receiptAmount), 0) from (select distinct t1.id,t1.code,t1.actual_fee_amount,t2.receiptAmount from (select * from yl_reimburse where name = '{2}' and status = '已审批' " +
-        "and (account_result != '拒绝' or account_result is null) and fee_company {5} and month('{1}') = month(actual_fee_amount_time)) t1 inner join " +
+        "and (account_result != '拒绝' or account_result is null) and fee_company {5} and (month('{0}') = month(actual_fee_amount_time) - 1)) t1 inner join " +
         "(select ReceiptAmount,status,code from yl_reimburse_detail) t2  on t2.code like concat('%', t1.code, '%') " +
         "where t2.status = '同意' and t1.isPrepaid = '1' and t1.fee_department = '{3}' and t1.fee_detail like '{4}%') temp; ", startTm, endTm, name, fee_department, fee_detail, condition);
 
         sql += string.Format("select ifnull(sum(temp.amount), 0) from (select distinct t1.id,t1.code,t1.actual_fee_amount,t3.amount from (select * from yl_reimburse where name = '{2}' and status = '已审批' " +
-        "and (account_result != '拒绝' or account_result is null) and fee_company {5} and month('{1}') = month(actual_fee_amount_time)) t1 inner join " +
+        "and (account_result != '拒绝' or account_result is null) and fee_company {5} and (month('{0}') = month(actual_fee_amount_time) - 1)) t1 inner join " +
         "(select ReceiptAmount,status,code from yl_reimburse_detail) t2 on t2.code like concat('%', t1.code, '%') " +
-        "inner join yl_reimburse_loan t3 on t1.code = t3.reimburseCode where t2.status = '同意' and t1.fee_department = '{3}' and t1.fee_detail like '{4}%') temp ", startTm, endTm, name, fee_department, fee_detail, condition);
+        "inner join yl_reimburse_loan t3 on t1.code = t3.reimburseCode where t2.status = '同意' and t1.fee_department = '{3}' and t1.fee_detail like '{4}%') temp; ", startTm, endTm, name, fee_department, fee_detail, condition);
 
+        sql += string.Format("select ifnull(sum(temp.pay_amount), 0) from (select distinct t1.id,t1.code,t1.actual_fee_amount,t2.receiptAmount from (select * from yl_reimburse where name = '{2}' and status = '已审批' " +
+        "and (account_result != '拒绝' or account_result is null) and fee_company {5} and (month('{0}') = month(actual_fee_amount_time) - 1)) t1 inner join " +
+        "(select ReceiptAmount,status,code from yl_reimburse_detail) t2  on t2.code like concat('%', t1.code, '%') " +
+        "where t2.status = '同意' and t1.fee_department = '{3}' and t1.fee_detail like '{4}%') temp ", startTm, endTm, name, fee_department, fee_detail, condition);
         //sql += string.Format("select ifnull(sum(temp.actual_fee_amount), 0) from (select distinct t1.id,t1.code,t1.actual_fee_amount from (select * from yl_reimburse where name = '{2}' and status = '已审批' " +
         //"and (account_result != '拒绝' or account_result is null) and fee_company {5}) t1 inner join " +
         //"(select ReceiptAmount,status,code from yl_reimburse_detail where createTime between '{0}' and '{1}') t2  on t2.code like concat('%', t1.code, '%') " +
@@ -876,7 +881,7 @@ public partial class TotalFeeManage : System.Web.UI.Page
     {
         return string.Format("select * from (select a.id id1,a.code code1,a.name,a.fee_department,a.actual_fee_amount_time,REVERSE(SUBSTR(REVERSE(a.fee_detail) FROM " +
             "INSTR(REVERSE(a.fee_detail),'-')+1)) fee_detail from yl_reimburse a where status = '已审批' and (account_result != '拒绝' or account_result is null) " +
-            "and fee_company {3} and department {4} and month('{1}') = month(actual_fee_amount_time)) t1 left join (select ReceiptTax,receiptType,ReceiptAmount,status,code,id " +
+            "and fee_company {3} and department {4} and (month('{0}') = month(actual_fee_amount_time) - 1)) t1 left join (select ReceiptTax,receiptType,ReceiptAmount,status,code,id " +
             "from yl_reimburse_detail ) t2 on t2.code like concat('%', t1.code1, '%') " +
             " where t2.receiptType = '{2}' and t2.status = '同意' order by t1.name ", startTm, endTm, header, companyCondition, departmentCondition);
     }
@@ -894,7 +899,7 @@ public partial class TotalFeeManage : System.Web.UI.Page
         return string.Format("select distinct t2.activityDate 日期, t1.name 人员名称, t2.originAmount 含税金额, t2.receiptTax 税额, (t2.originAmount - t2.receiptTax) 不含税金额, " +
         "round(t2.receiptTax/(t2.originAmount - t2.receiptTax), 2) 税率, t2.feeType 票据类型, t2.receiptNum 票号 " +
         "from (select * from yl_reimburse where status = '已审批' and (account_result != '拒绝' or account_result is null) " +
-        "and fee_company {2} and department {3}) t1 left join (select code,activityDate,originAmount,receiptTax,feeType,receiptNum,status from yl_reimburse_detail where createTime between '{0}' and '{1}') t2 " +
+        "and fee_company {2} and department {3} and (month('{0}') = month(actual_fee_amount_time) - 1)) t1 left join (select code,activityDate,originAmount,receiptTax,feeType,receiptNum,status from yl_reimburse_detail) t2 " +
         "on t2.code like concat('%', t1.code, '%') where t2.status = '同意' and t2.receiptTax != 0 and t2.receiptTax is not null order by t1.name"
         , startTm, endTm, companyCondition, departmentCondition);
     }
@@ -902,7 +907,7 @@ public partial class TotalFeeManage : System.Web.UI.Page
     private string getTotalTaxDatagrid()
     {
         string startTm = Request.Form["startTm"] + " 00:00:00";
-        string endTm = DateTime.Parse(startTm).AddMonths(1).AddDays(-7).ToString("yyyy-MM-dd") + " 23:59:59";
+        //string endTm = DateTime.Parse(startTm).AddMonths(1).AddDays(-7).ToString("yyyy-MM-dd") + " 23:59:59";
         string type = Request.Form["type"].ToString();
 
         string sql = "";
@@ -910,59 +915,59 @@ public partial class TotalFeeManage : System.Web.UI.Page
         if (type == "1")
         {
             // 业力职能
-            sql = getTaxSql(startTm, endTm, "like '江西业力医疗器械%'", "not like '%营销中心%'");
+            sql = getTaxSql(startTm, null, "like '江西业力医疗器械%'", "not like '%营销中心%'");
         }
         else if (type == "2")
         {
-            sql = getTaxSql(startTm, endTm, "like '江西业力医疗器械%'", "like '%营销中心%'");
+            sql = getTaxSql(startTm, null, "like '江西业力医疗器械%'", "like '%营销中心%'");
         }
         else if (type == "3")
         {
-            sql = getTaxSql(startTm, endTm, "like '南昌市中申%'", "not like '%营销中心%'");
+            sql = getTaxSql(startTm, null, "like '南昌市中申%'", "not like '%营销中心%'");
             // 中申职能
         }
         else if (type == "4")
         {
-            sql = getTaxSql(startTm, endTm, "like '南昌市中申%'", "like '%营销中心%'");
+            sql = getTaxSql(startTm, null, "like '南昌市中申%'", "like '%营销中心%'");
             // 中申销售
         }
         else if (type == "5")
         {
-            sql = getTaxSql(startTm, endTm, "like '江西东森科技发展%'", "like '%营销中心%'");
+            sql = getTaxSql(startTm, null, "like '江西东森科技发展%'", "like '%营销中心%'");
             // 东森销售
         }
         else if (type == "6")
         {
-            sql = getTaxSql(startTm, endTm, "like '江西东森科技发展%'", "not like '%营销中心%'");
+            sql = getTaxSql(startTm, null, "like '江西东森科技发展%'", "not like '%营销中心%'");
             // 东森职能
         }
         else if (type == "7")
         {
-            sql = getTaxSql(startTm, endTm, "like '江西业力科技集团有限公司%'", "like '%'");
+            sql = getTaxSql(startTm, null, "like '江西业力科技集团有限公司%'", "like '%'");
         }
         else if (type == "8")
         {
-            sql = getTaxSql(startTm, endTm, "= '南昌老康科技有限公司'", "like '%营销中心%'");
+            sql = getTaxSql(startTm, null, "= '南昌老康科技有限公司'", "like '%营销中心%'");
         }
         else if (type == "9")
         {
-            sql = getTaxSql(startTm, endTm, "= '天津吉诺泰普生物科技有限公司'", "like '%'");
+            sql = getTaxSql(startTm, null, "= '天津吉诺泰普生物科技有限公司'", "like '%'");
         }
         else if (type == "10")
         {
-            sql = getTaxSql(startTm, endTm, "= '南昌业力医学检验实验室有限公司'", "like '%'");
+            sql = getTaxSql(startTm, null, "= '南昌业力医学检验实验室有限公司'", "like '%'");
         }
         else if (type == "11")
         {
-            sql = getTaxSql(startTm, endTm, "= '九江傲沐科技发展有限公司'", "like '%营销中心%'");
+            sql = getTaxSql(startTm, null, "= '九江傲沐科技发展有限公司'", "like '%营销中心%'");
         }
         else if (type == "12")
         {
-            sql = getTaxSql(startTm, endTm, "= '南昌老康科技有限公司'", "not like '%营销中心%'");
+            sql = getTaxSql(startTm, null, "= '南昌老康科技有限公司'", "not like '%营销中心%'");
         }
         else if (type == "13")
         {
-            sql = getTaxSql(startTm, endTm, "= '九江傲沐科技发展有限公司'", "not like '%营销中心%'");
+            sql = getTaxSql(startTm, null, "= '九江傲沐科技发展有限公司'", "not like '%营销中心%'");
         }
 
         return JsonHelper.DataTable2Json(SqlHelper.Find(sql).Tables[0]);
@@ -977,7 +982,7 @@ public partial class TotalFeeManage : System.Web.UI.Page
         };
 
         string startTm = Request.Form["startTm"] + " 00:00:00";
-        string endTm = Request.Form["endTm"] + " 23:59:59";
+        //string endTm = Request.Form["endTm"] + " 23:59:59";
         string names = Request.Form["names"];
         string departments = Request.Form["departments"];
         string feeDetails = Request.Form["feeDetails"];
@@ -1012,11 +1017,14 @@ public partial class TotalFeeManage : System.Web.UI.Page
         {
             // 找到每个人所有发票关联的移动报销
             string sql = string.Format("select distinct t2.code,t3.wechatUserId from yl_reimburse_detail t1 " +
-                "inner join (select * from yl_reimburse where name = '{2}' and fee_detail = '{3}' and fee_department = '{4}' and fee_company = '{5}') t2 on t1.code like concat('%', t2.code, '%') " +
-                "inner join users t3 on t1.submitterId = t3.userId " +
-                "where t1.createTime between '{0}' and '{1}'", startTm, endTm, name, feeDetailList[index], departmentList[index], company);
+                "inner join (select * from yl_reimburse where name = '{2}' and fee_detail = '{3}' and fee_department = '{4}' and fee_company = '{5}' " +
+                "and (month('{0}') = month(actual_fee_amount_time) - 1)) t2 on t1.code like concat('%', t2.code, '%') " +
+                "inner join users t3 on t1.submitterId = t3.userId ", startTm, null, name, feeDetailList[index], departmentList[index], company);
 
             DataTable dt = SqlHelper.Find(sql).Tables[0];
+
+            if (dt.Rows.Count == 0)
+                continue;
 
             wechatUserId += dt.Rows[0][1].ToString() + "|";
 

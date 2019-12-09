@@ -44,10 +44,12 @@
         </table>
     </div>--%>
     <div id="tb" style="padding: 2px 5px;">
-        开始日期:
+        <%--开始日期:
         <input id="startTm" type="text" class="easyui-datebox">
         结束日期:
-        <input id="endTm" type="text" class="easyui-datebox">
+        <input id="endTm" type="text" class="easyui-datebox">--%>
+        月份查询:
+        <input id="date" type="text" class="easyui-datebox" />
         汇总表类型:
         <select id="type" class="easyui-combobox" style="width:110px;" data-options="editable:false,panelHeight:'auto'">
             <option value="1">业力职能</option>
@@ -89,10 +91,11 @@
     var d = new Date();
     var Url = "TotalFeeManage.aspx";
     $(function () {
-        //dateboxShowMonth('date');
-        var firstDate = d.getFullYear() + "-" + (d.getMonth() + 1) + d.getDate();
-        $("#startTm").datebox('setValue', firstDate);
-        $("#endTm").datebox('setValue', firstDate);
+        dateboxShowMonth('date');
+        var firstDate = d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
+        $("#date").datebox('setValue', firstDate);
+        //$("#startTm").datebox('setValue', firstDate);
+        //$("#endTm").datebox('setValue', firstDate);
         initDatagrid();
     })
 
@@ -178,8 +181,9 @@
         $.post('TotalFeeManage.aspx', {
             action: 'getTotalFeeDatagrid',
             type: $("#type").val(),
-            startTm: $('#startTm').datebox('getValue'),
-            endTm: $('#endTm').datebox('getValue')
+            startTm: $('#date').datebox('getValue') + '-01',
+            //startTm: $('#startTm').datebox('getValue'),
+            //endTm: $('#endTm').datebox('getValue')
         }, function (res) {
             var data = $.parseJSON(res);
             if (data.length == 0) {
@@ -220,8 +224,9 @@
             $.post('TotalFeeManage.aspx', {
                 action: 'getTotalTaxDatagrid',
                 type: $("#type").val(),
-                startTm: $('#startTm').datebox('getValue'),
-                endTm: $('#endTm').datebox('getValue')
+                startTm: $('#date').datebox('getValue') + '-01',
+                //startTm: $('#startTm').datebox('getValue'),
+                //endTm: $('#endTm').datebox('getValue')
             }, function (res) {
                 parent.Loading(false);
                 data = $.parseJSON(res);
