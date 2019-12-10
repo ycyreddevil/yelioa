@@ -211,6 +211,23 @@
             <el-table-column prop="TaxRate" label="税率" width="100"></el-table-column>
             <el-table-column prop="Remark" label="备注" width="100"></el-table-column>
         </el-table>
+        <!-- 利息table-->
+        <el-table stripe :data="tableData" style="width: 100%" size="mini" show-summary v-show="detailShow && type === 5">
+            <el-table-column prop="Name" label="类型" width="100"></el-table-column>
+            <el-table-column prop="LoanDate" label="借款时间" width="100"></el-table-column>
+            <el-table-column prop="DueDate" label="到期时间" width="100"></el-table-column>
+            <el-table-column prop="Frequency" label="利息支付频率" width="100"></el-table-column>
+            <el-table-column prop="Amount" label="借款金额" width="100"></el-table-column>
+            <el-table-column prop="YearRate" label="年利率" width="100"></el-table-column>
+            <el-table-column prop="MonthRate" label="月利息" width="100"></el-table-column>
+            <el-table-column prop="PaidInterest" label="已付银行利息" width="100"></el-table-column>
+            <el-table-column prop="Proviston" label="已计提" width="100"></el-table-column>
+            <el-table-column prop="NotProviston" label="还应计提" width="100"></el-table-column>
+            <el-table-column prop="PaidPrincipal" label="已还本金" width="100"></el-table-column>
+            <el-table-column prop="ProvistonDate" label="利息计提期间" width="100"></el-table-column
+            <el-table-column prop="Remark" label="摘要" width="100"></el-table-column>
+            <el-table-column prop="LastPrincipal" label="期末结余本金" width="100"></el-table-column>
+        </el-table>
         <!-- 折旧table-->
         <el-table stripe :data="tableData" style="width: 100%" size="mini" show-summary v-show="detailShow && type === 'depreciation'">
             <el-table-column prop="Type" label="类型" width="100"></el-table-column>

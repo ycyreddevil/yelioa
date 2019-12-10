@@ -211,6 +211,9 @@
                 if (value === '实付金额') {
                     column["editor"] = {type: 'numberbox',options: { precision: 2, min: 0 }}
                 }
+                column["formatter"] = (v, r, i) => {
+                    return isNaN(v) ? v : parseFloat(v).toFixed(2)
+                }
                 columns.push(column);
                 //}
             });
@@ -222,9 +225,10 @@
             column["width"] = 100;
             column["align"] = 'center';
             column["sortable"] = true;
-            column["formatter"] = function (v, r, i) {
-                return r["应付金额"] - r["实付金额"]
+            column["formatter"] = (v, r, i) => {
+                return (r["应付金额"] - r["实付金额"]).toFixed(2)
             }
+            columns.push(column);
 
             $('#dg').edatagrid({
                 columns: [columns]
@@ -302,6 +306,7 @@
                         //endTm: $('#endTm').datebox('getValue'),
                     }, res => {
                         $.messager.alert('提示', '操作成功', 'info');
+                        $('#dg').datagrid('reload');
                     })
                 }
             }

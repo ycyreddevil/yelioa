@@ -44,6 +44,10 @@ public partial class mCompanyFee : System.Web.UI.Page
             {
                 Response.Write(uploadTaxExcel());
             }
+            else if (action == "uploadInterestExcel")
+            {
+                Response.Write(uploadInterestExcel());
+            }
             else if (action == "uploadDepreciationExcel")
             {
                 Response.Write(uploadDepreciationExcel());
@@ -422,6 +426,90 @@ public partial class mCompanyFee : System.Web.UI.Page
         return JsonHelper.DataTable2Json(dt);
     }
 
+    private string uploadInterestExcel()
+    {
+        DataTable dtExl = ExcelHelperV2_0.Import(Request, 2);
+
+        DataTable dt = new DataTable();
+
+        if (dtExl.Rows.Count == 0)
+        {
+            return JsonHelper.DataTable2Json(dt);
+        }
+
+        // 再新增
+        int startId = 0;
+        string sql = "select max(Id) from tax;";
+        object obj = SqlHelper.Scalar(sql);
+        if (obj != null)
+            startId = Convert.ToInt32(obj) + 1;
+
+        dt.Columns.Add("Id");
+        dt.Columns.Add("DocCode");
+        dt.Columns.Add("Level");
+        dt.Columns.Add("Status");
+        dt.Columns.Add("Company");
+
+        dt.Columns.Add("Name");
+        dt.Columns.Add("LoanDate");
+        dt.Columns.Add("DueDate");
+        dt.Columns.Add("Frequency");
+        dt.Columns.Add("Amount");
+        dt.Columns.Add("YearRate");
+        dt.Columns.Add("MonthRate");
+        dt.Columns.Add("PaidInterest");
+        dt.Columns.Add("Proviston");
+        dt.Columns.Add("NotProviston");
+        dt.Columns.Add("PaidPrincipal");
+        dt.Columns.Add("ProvistonDate");
+        dt.Columns.Add("Remark");
+        dt.Columns.Add("LastPrincipal");
+
+        UserInfo user = (UserInfo)Session["user"];
+        string year = Request.Form["year"];
+        string month = Request.Form["month"];
+        string company = Request.Form["company"];
+        string docCode = GenerateDocCode.generateRandomDocCode();
+
+        foreach (DataRow dr in dtExl.Rows)
+        {
+            //if (string.IsNullOrEmpty(dr["税种"].ToString()) || dr["税种"].ToString().Trim().Contains("合   计") || dr["税种"].ToString().Contains("总经理"))
+            //    continue;
+
+            DataRow r = dt.NewRow();
+
+            r["SubmitterId"] = user.userId.ToString();
+            r["Year"] = year;
+            r["Month"] = month;
+            r["CreateTime"] = DateTime.Now;
+            r["Company"] = company;
+            r["Id"] = startId++;
+            r["DocCode"] = docCode;
+            r["Level"] = 1;
+            r["Status"] = "审批中";
+
+            r["Name"] = dr["名称"];
+            r["LoanDate"] = dr["借款时间"];
+            r["DueDate"] = dr["到期时间"];
+            r["Frequency"] = dr["利息支付频率"];
+            r["Amount"] = dr["借款金额"];
+            r["YearRate"] = dr["年利率"];
+            r["MonthRate"] = dr["月利息"];
+            r["PaidInterest"] = dr["已付银行利息"];
+            r["Proviston"] = dr["已计提"];
+            r["NotProviston"] = dr["还应计提"];
+            r["PaidPrincipal"] = dr["已还本金"];
+            r["ProvistonDate"] = dr["利息计提期间"];
+            r["Remark"] = dr["摘要"];
+            r["LastPrincipal"] = dr["期末结余本金"];
+
+            dt.Rows.Add(r);
+        }
+
+        return JsonHelper.DataTable2Json(dt);
+    }
+
+
     private string uploadDepreciationExcel()
     {
         DataTable dtExl = ExcelHelperV2_0.Import(Request, 2);
@@ -578,6 +666,8 @@ public partial class mCompanyFee : System.Web.UI.Page
             sql = string.Format("select * from outer_wages where year = '{0}' and month = '{1}' and company = '{2}'", year, month, company);
         else if (type == "3")
             sql = string.Format("select * from tax where year = '{0}' and month = '{1}' and company = '{2}'", year, month, company);
+        else if (type == "4")
+            sql = string.Format("select * from interest where year = '{0}' and month = '{1}' and company = '{2}'", year, month, company);
         else if (type == "5")
             sql = string.Format("select * from depreciation where year = '{0}' and month = '{1}' and company = '{2}'", year, month, company);
         else if (type == "6")
@@ -599,6 +689,8 @@ public partial class mCompanyFee : System.Web.UI.Page
             tableName = "outer_wages";
         else if (type == "3")
             tableName = "tax";
+        else if (type == "4")
+            tableName = "interest";
         else if (type == "5")
             tableName = "depreciation";
         else if (type == "6")
@@ -640,8 +732,12 @@ public partial class mCompanyFee : System.Web.UI.Page
 
         if (type == "1")
             tableName = "wages";
+        else if (type == "2")
+            tableName = "outer_wages";
         else if (type == "3")
             tableName = "tax";
+        else if (type == "4")
+            tableName = "interest";
         else if (type == "5")
             tableName = "depreciation";
         else if (type == "6")
@@ -733,6 +829,8 @@ public partial class mCompanyFee : System.Web.UI.Page
             chineseName = "非全日制人员工资";
         else if (type == "3")
             chineseName = "税金";
+        else if (type == "4")
+            chineseName = "利息";
         else if (type == "5")
             chineseName = "折旧";
         else if (type == "6")

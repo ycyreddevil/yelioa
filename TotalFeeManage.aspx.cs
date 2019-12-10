@@ -858,14 +858,14 @@ public partial class TotalFeeManage : System.Web.UI.Page
         //    "where name = '{2}' and status = '已审批' and (account_result != '拒绝' or account_result is null) and fee_company {5} and (month('{0}') = month(actual_fee_amount_time) - 1) " +
         //    "and fee_department = '{3}' and fee_detail like '{4}%') temp ", startTm, endTm, name, fee_department, fee_detail, condition);
 
-        string sql = string.Format("select ifnull(sum(temp.receiptAmount), 0) from (select distinct t1.id,t1.code,t1.actual_fee_amount,t2.receiptAmount from (select * from yl_reimburse where name = '{2}' and status = '已审批' " +
+        string sql = string.Format("select ifnull(sum(temp.receiptAmount), 0) from (select distinct t1.id,t2.id1,t1.code,t1.actual_fee_amount,t2.receiptAmount from (select * from yl_reimburse where name = '{2}' and status = '已审批' " +
         "and (account_result != '拒绝' or account_result is null) and fee_company {5} and (month('{0}') = month(actual_fee_amount_time) - 1)) t1 inner join " +
-        "(select ReceiptAmount,status,code from yl_reimburse_detail where status = '同意' ) t2  on t2.code like concat('%', t1.code, '%') " +
+        "(select ReceiptAmount,status,code,id id1 from yl_reimburse_detail where status = '同意' ) t2  on t2.code like concat('%', t1.code, '%') " +
         "where t1.isPrepaid = '1' and t1.fee_department = '{3}' and t1.fee_detail like '{4}%') temp; ", startTm, endTm, name, fee_department, fee_detail, condition);
 
-        sql += string.Format("select ifnull(sum(temp.amount), 0) from (select distinct t1.id,t1.code,t1.actual_fee_amount,t3.amount from (select * from yl_reimburse where name = '{2}' and status = '已审批' " +
+        sql += string.Format("select ifnull(sum(temp.amount), 0) from (select distinct t1.id,t2.id1,t1.code,t1.actual_fee_amount,t3.amount from (select * from yl_reimburse where name = '{2}' and status = '已审批' " +
         "and (account_result != '拒绝' or account_result is null) and fee_company {5} and (month('{0}') = month(actual_fee_amount_time) - 1)) t1 inner join " +
-        "(select ReceiptAmount,status,code from yl_reimburse_detail where status = '同意') t2 on t2.code like concat('%', t1.code, '%') " +
+        "(select ReceiptAmount,status,code,id id1 from yl_reimburse_detail where status = '同意') t2 on t2.code like concat('%', t1.code, '%') " +
         "inner join yl_reimburse_loan t3 on t1.code = t3.reimburseCode where t1.fee_department = '{3}' and t1.fee_detail like '{4}%') temp; ", startTm, endTm, name, fee_department, fee_detail, condition);
 
         //sql += string.Format("select ifnull(sum(temp.pay_amount), 0) from (select distinct t1.id,t1.code,t1.actual_fee_amount,t1.pay_amount from (select * from yl_reimburse where name = '{2}' and status = '已审批' " +
@@ -1001,6 +1001,8 @@ public partial class TotalFeeManage : System.Web.UI.Page
         string type = Request.Form["type"];
         string payAmounts = Request.Form["payAmounts"];
 
+        int month = Convert.ToDateTime(startTm).Month;
+
         List<string> nameList = JsonHelper.DeserializeJsonToObject<List<string>>(names);
         List<string> departmentList = JsonHelper.DeserializeJsonToObject<List<string>>(departments);
         List<string> feeDetailList = JsonHelper.DeserializeJsonToObject<List<string>>(feeDetails);
@@ -1023,7 +1025,6 @@ public partial class TotalFeeManage : System.Web.UI.Page
         else if (type == "11" || type == "13")
             company = "九江傲沐科技发展有限公司";
 
-        string wechatUserId = string.Empty;
         int index = 0;
         foreach (string name in nameList)
         {
@@ -1038,12 +1039,17 @@ public partial class TotalFeeManage : System.Web.UI.Page
             if (dt.Rows.Count == 0)
                 continue;
 
-            wechatUserId += dt.Rows[0][1].ToString() + "|";
-
             List<string> sqls = new List<string>();
 
             //总出纳付款金额
             double totalAmount = double.Parse(payAmountList[index].ToString());
+
+            // 给每个人发消息提示财务已付款
+            string wechatUserId = dt.Rows[0][1].ToString();
+
+            WxCommon wx = new WxCommon("mMobileReimbursement", "UM0i5TXSIqQIOWk-DmUlfTqBqvZAfbZdGGDKiFZ-nRk", "1000006", "");
+
+            wx.SendWxMsg(wechatUserId, "出纳付款通知", string.Format("您的{0}月单据出纳已付款，总计{1}元,请查收", month, totalAmount), "http://yelioa.top/mMySubmittedReimburse.aspx");
 
             foreach (DataRow dr in dt.Rows)
             {
@@ -1063,7 +1069,7 @@ public partial class TotalFeeManage : System.Web.UI.Page
                 double actual_fee_amount = double.Parse(tempDs.Tables[0].Rows[0][0].ToString());
                 double loan_amount = double.Parse(tempDs.Tables[1].Rows[0][0].ToString());
 
-                double pay_amount = actual_fee_amount >= loan_amount ? (actual_fee_amount - loan_amount) : 0;
+                double pay_amount = (actual_fee_amount - loan_amount) < totalAmount ? (actual_fee_amount - loan_amount) : totalAmount;
 
                 sqls.Add(string.Format("update yl_reimburse set pay_amount = {1} where code = '{0}';", code, pay_amount));
 
@@ -1073,13 +1079,6 @@ public partial class TotalFeeManage : System.Web.UI.Page
             SqlHelper.Exce(sqls.ToArray());
             index++;
         }
-
-        wechatUserId = wechatUserId.Substring(0, wechatUserId.Length - 1);
-
-        // 给每个人发消息提示财务已付款
-        WxCommon wx = new WxCommon("mMobileReimbursement","UM0i5TXSIqQIOWk-DmUlfTqBqvZAfbZdGGDKiFZ-nRk","1000006", "");
-
-        wx.SendWxMsg(wechatUserId, "出纳付款通知", "您的当月单据出纳已付款，请查收", "http://yelioa.top/mMySubmittedReimburse.aspx");
 
         return result.ToString();
     }
